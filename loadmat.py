@@ -6,12 +6,11 @@
 
 import scipy.io as sio
 import pandas as pd
-import datetime
+import datetime, re
 
 class LoadMatFile(object):
 
     def __init__(self, matFile):
-        # matFile = 'E:\windDataOriginal\commodity\\20170531\\al1706\\al1706_20170531.mat'
         self.matFile = matFile
         self.data = sio.loadmat(self.matFile)
 
@@ -42,9 +41,10 @@ class LoadMatFile(object):
         df["date"] = df["date"].map(f)
         df["time"] = df["time"].map(f)
         vtSymbol = self.matFile.split('\\')[-1].split('_')[0]
+        symbol = re.findall(r"[a-zA-Z]", vtSymbol)[0].lower()
         date = self.matFile.split('\\')[-1].split('_')[-1][:-4]
         df["windCode"] = vtSymbol
-        df["code"] = vtSymbol
+        df["code"] = symbol
         df["DT"] = df["date"] + ' ' + df["time"]
         df["datetime"] = df["DT"].map(lambda x:datetime.datetime.strptime(x, "%Y%m%d %H%M%S%f"))
         del df["DT"]

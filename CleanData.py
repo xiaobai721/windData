@@ -95,12 +95,26 @@ class CleanData(object):
     @add_log
     def cleanIllegalTradingTime(self):
         """删除非交易时段数据"""
-        self.df['illegalTime'] = self.df["Time"].map(self.StandardizeTimePeriod)
+        self.df['illegalTime'] = self.df["time"].map(self.StandardizeTimePeriod)
         self.df['illegalTime'] = self.df['illegalTime'].fillna(False)
         for i,row in self.df[self.df['illegalTime'] == False].iterrows():
             self.removeList.append(i)
             logger.info('remove index = %d' %(i))
         del self.df["illegalTime"]
+
+    @add_log
+    def reserveLastTickInAuc(self):
+        """保留集合竞价期间最后一个tick数据"""
+        self.df["structTime"] = self.df["time"].map(lambda x: time.strptime(x, "%H%M%S%f"))
+        start = time.strptime('8:59:00', '%H:%M:%S')
+        end =  time.strptime('9:00:00', '%H:%M:%S')
+        p1 = self.df["structTime"] >= start
+        p2 = self.df["structTime"] < end
+        dfTemp = self.df.loc[p1 & p2]
+        dfTemp = dfTemp.sort_values(by = ["structTime"], ascending=False)
+        for i in dfTemp.index.values[1:]:
+            self.removeList.append(i)
+            logger.info('remove index = %d' % i)
 
     @add_log
     def cleanSameTimestamp(self):
