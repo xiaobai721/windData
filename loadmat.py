@@ -13,6 +13,7 @@ class LoadMatFile(object):
     def __init__(self, matFile):
         self.matFile = matFile
         self.data = sio.loadmat(self.matFile)
+        self.dfData = self.convert2df()
 
     def convert2df(self):
         colNames = ['windCode','code','date','time','lastPrice','lastVolume','lastTurnover','matchItems','openInterest','tradeFlag','bsFlag','volume','turnover'

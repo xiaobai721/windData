@@ -1,7 +1,7 @@
 """
 聚合K线，生成相应周期
 """
-import time
+import time, datetime
 import pandas as pd
 import pickle
 import os
@@ -9,35 +9,43 @@ from dbHandle import dbHandle
 
 class AggregateTickData(object):
 
-    def __init__(self, dfInfo):
+    def __init__(self, dfInfo, date):
         self.timeFilePath = os.getcwd() + '/' + 'timeSeriesFile/'
         self.barDict = {}
         self.splitDict = {}
         self.dfInfo = dfInfo
         self.Symbol = ['a']
         self.db = dbHandle()
-        self.timePoint = "20170531"
-        self.saveTimeList()
+        self.timePoint = date
         self.initStart()
 
     def initStart(self):
+        self.getTimeList()
         db = self.db.get_db("localhost", 27017, 'WIND_TICK_DB')
         names = self.db.get_all_colls(db)
         for i in names:
             self.df = pd.DataFrame(list(self.db.get_specificDayItems(db, i, self.timePoint)))
-            self.gen1minKData(i, self.df)
+            self.genKData(i, self.df)
 
-    def saveTimeList(self):
+    def getTimeList(self):
         if not os.path.exists(self.timeFilePath):
             os.makedirs(self.timeFilePath)
-        for i in self.Symbol:
-            self.genTimeList(i)
+        filePath = self.timeFilePath + 'timeSeries.pickle'
+        if os.path.exists(filePath) and datetime.datetime.fromtimestamp(os.path.getmtime(filePath)).replace(hour=0,minute=0,second=0,microsecond=0) == \
+            datetime.datetime.today().replace(hour=0,minute=0,second=0,microsecond=0):
+            with open(filePath, 'rb') as handle:
+                self.splitDict = pickle.load(handle)
+        else:
+            for i in self.Symbol:
+                self.genTimeList(i)
+            self.saveTimeList()
+
+    def saveTimeList(self):
         with open(self.timeFilePath + 'timeSeries.pickle', 'wb') as handle:
             pickle.dump(self.splitDict, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-
     def genTimeList(self, symbol):
-        cycle = [1,5,10,15,30,60]
+        cycle = [1,5,15,30,60]
         tempDict = {}
         self.splitDict[symbol] = {}
         for c in cycle:
@@ -58,24 +66,60 @@ class AggregateTickData(object):
             lst.sort()
             self.splitDict[symbol][c] = lst
 
+    def genKData(self, vtSymbol, df_data):
+        self.gen1minKData(vtSymbol, df_data)
+        self.genOtherKData(vtSymbol)
+        self.gen1DayKData(vtSymbol)
 
     def gen1minKData(self, vtSymbol, df_data):
-        cycle = 1
+        c = 1
         self.barDict[vtSymbol] = {}
-        self.barDict[vtSymbol][cycle] = []
+        self.barDict[vtSymbol][c] = []
         self.df["structTime"] = self.df["time"].map(lambda x:time.strptime(x, "%H%M%S%f"))
-        #保留8:59-9:00最后一个tick，待完成
-        for i in zip(*[iter(self.splitDict[vtSymbol][cycle][i:]) for i in range(2)]):
+        for i in zip(*[iter(self.splitDict[vtSymbol][c][i:]) for i in range(2)]):
             start = time.strptime(str(i[0]).strip(), '%H:%M:%S')
             end = time.strptime(str(i[1]).strip(), '%H:%M:%S')
+            if '9:00:00' in str(i[0]):
+                start = time.strptime('8:59:00', '%H:%M:%S')
             p1 = df_data["structTime"] >= start
             p2 = df_data["structTime"] < end
             dfTemp = df_data.loc[p1 & p2]
             if not dfTemp.empty:
-                self.barDict[vtSymbol][cycle].append(self.aggMethod(dfTemp))
+                self.barDict[vtSymbol][c].append(self.aggMethod(dfTemp))
 
         dbNew = self.db.get_db("localhost", 27017, 'WIND_1_MIN_DB')
-        self.db.insert2db(dbNew, vtSymbol, self.barDict[vtSymbol][cycle])
+        self.db.insert2db(dbNew, vtSymbol, self.barDict[vtSymbol][c])
+
+    def genOtherKData(self, vtSymbol):
+        cycle = [5,15,30,60]
+        for c in cycle:
+            self.barDict[vtSymbol][c] = []
+            for i in zip(*[iter(self.splitDict[vtSymbol][c][i:]) for i in range(2)]):
+                self.start1 = time.strptime(str(i[0]).strip(), '%H:%M:%S')
+                self.end1 = time.strptime(str(i[1]).strip(), '%H:%M:%S')
+                items = list(map(self.selectItems, self.barDict[vtSymbol][1]))
+                items = list(filter(lambda x:x is not None, items))
+                dfTemp = pd.DataFrame(items)
+                if not dfTemp.empty:
+                    self.barDict[vtSymbol][c].append(self.aggMethod(dfTemp))
+
+            dbNew = self.db.get_db("localhost", 27017, 'WIND_' + str(c) + '_MIN_DB')
+            self.db.insert2db(dbNew, vtSymbol, self.barDict[vtSymbol][c])
+
+    def gen1DayKData(self, vtSymbol):
+        c = '1Day'
+        self.barDict[vtSymbol][c] = []
+        items = self.barDict[vtSymbol][1]
+        dfTemp = pd.DataFrame(items)
+        if not dfTemp.empty:
+            self.barDict[vtSymbol][c].append(self.aggMethod(dfTemp))
+            dbNew = self.db.get_db("localhost", 27017, 'WIND_' + str(c) + '_MIN_DB')
+            self.db.insert2db(dbNew, vtSymbol, self.barDict[vtSymbol][c])
+
+    def selectItems(self,x):
+        ti = time.strptime(x["time"].strip(), '%H%M%S%f')
+        if ti >= self.start1 and ti < self.end1:
+            return x
 
     def aggMethod(self, dfTemp):
         tempBar = {}

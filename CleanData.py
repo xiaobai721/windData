@@ -6,9 +6,9 @@
 from pymongo import MongoClient
 import pandas as pd
 import time, datetime
-import json, pickle
 import logging
 import os
+from dbHandle import dbHandle
 
 
 LOG_FILE = os.getcwd() + '/' + 'LogFile/' + time.strftime('%Y-%m-%d',time.localtime(time.time()))  + ".log"
@@ -25,10 +25,12 @@ def add_log(func):
 
 class CleanData(object):
 
-    def __init__(self, dfData):
+    def __init__(self, dfData, dfInfo):
         self.df = dfData
         self.date = datetime.datetime.strptime(self.df["date"][0], "%Y%m%d")
-        self.dfInfo = self.loadInformation()
+        self.dfInfo = dfInfo
+        self.db = dbHandle()
+        self.initCleanRegulation()
 
     def initList(self):
         self.removeList = []
@@ -36,7 +38,7 @@ class CleanData(object):
         self.logList = []
 
     def initCleanRegulation(self):
-        dbNew = self.get_db("localhost", 27017, 'WIND_TICK_DB')
+        dbNew = self.db.get_db("localhost", 27017, 'WIND_TICK_DB')
         i = self.df["code"][0]
         try:
             print ("start process collection %s........." %(i))
@@ -46,51 +48,52 @@ class CleanData(object):
             if not self.df.empty:
                 self.cleanIllegalTradingTime()
                 self.cleanSameTimestamp()
+                self.reserveLastTickInAuc()
                 self.cleanNullVolTurn()
                 self.cleanNullPriceIndicator()
                 self.cleanNullOpenInter()
                 self.recordExceptionalPrice()
 
                 self.delItemsFromRemove()
-                self.insert2db(dbNew,i)
+                self.db.insert2db(dbNew,i, self.df)
         except Exception as e:
             print ("Exception: %s" %e)
             logger.error("Exception: %s" %e)
 
-    def get_db(self,host,port,dbName):
-        #建立连接
-        client = MongoClient(host,port)
-        db = client[dbName]
-        return db
+    # def get_db(self,host,port,dbName):
+    #     #建立连接
+    #     client = MongoClient(host,port)
+    #     db = client[dbName]
+    #     return db
+    #
+    #
+    # def insert2db(self,dbNew,coll_name):
+    #     data = json.loads(self.df.T.to_json(date_format = 'iso')).values()
+    #     for i in data:
+    #         if isinstance(i["datetime"], str):
+    #             i["datetime"] = datetime.datetime.strptime(i["datetime"], "%Y-%m-%dT%H:%M:%S.%fZ")
+    #     dbNew[coll_name].insert_many(data)
 
-
-    def insert2db(self,dbNew,coll_name):
-        data = json.loads(self.df.T.to_json(date_format = 'iso')).values()
-        for i in data:
-            if isinstance(i["datetime"], str):
-                i["datetime"] = datetime.datetime.strptime(i["datetime"], "%Y-%m-%dT%H:%M:%S.%fZ")
-        dbNew[coll_name].insert_many(data)
-
-    def loadInformation(self):
-        dfInfo = pd.read_csv(os.getcwd() + '/BasicInformation.csv')
-        dfInfo.index = dfInfo['Symbol'].tolist()
-        del dfInfo['Symbol']
-        # 增加对历史周期交易时间段变更的记录
-        dfInfo["CurrPeriod"] = dfInfo["TradingPeriod"].map(self.identifyCurrentPeriod)
-        return dfInfo
-
-    def identifyCurrentPeriod(self, target):
-        if '%' in target:
-            phase = [i for i in target.split('%')]
-            phase.sort(reverse=True)
-            for i in phase:
-                startDate = datetime.datetime.strptime(i.split('||')[0], "%Y-%m-%d")
-                if startDate <= self.date:
-                    return i.split('||')[1]
-                else:
-                    continue
-        else:
-            return target.split('||')[1]
+    # def loadInformation(self):
+    #     dfInfo = pd.read_csv(os.getcwd() + '/BasicInformation.csv')
+    #     dfInfo.index = dfInfo['Symbol'].tolist()
+    #     del dfInfo['Symbol']
+    #     # 增加对历史周期交易时间段变更的记录
+    #     dfInfo["CurrPeriod"] = dfInfo["TradingPeriod"].map(self.identifyCurrentPeriod)
+    #     return dfInfo
+    #
+    # def identifyCurrentPeriod(self, target):
+    #     if '%' in target:
+    #         phase = [i for i in target.split('%')]
+    #         phase.sort(reverse=True)
+    #         for i in phase:
+    #             startDate = datetime.datetime.strptime(i.split('||')[0], "%Y-%m-%d")
+    #             if startDate <= self.date:
+    #                 return i.split('||')[1]
+    #             else:
+    #                 continue
+    #     else:
+    #         return target.split('||')[1]
 
     @add_log
     def cleanIllegalTradingTime(self):
