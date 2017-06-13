@@ -59,8 +59,8 @@ class AggregateTickData(object):
                     start = '9:00'
                 tempList = pd.date_range(start, end, freq=(str(c) + 'min')).time.tolist()
                 tempDict[c].extend(tempList)
-                if len(tempList)%2:
-                    tempDict[c].extend(pd.date_range(end, end, freq=(str(c) + 'min')).time.tolist())
+                # if len(tempList)%2:
+                tempDict[c].extend(pd.date_range(end, end, freq=(str(c) + 'min')).time.tolist())
             lst = list(set(tempDict[c]))
             lst.sort()
             self.splitDict[symbol][c] = lst

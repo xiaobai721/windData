@@ -30,7 +30,7 @@ class CleanData(object):
         self.date = datetime.datetime.strptime(self.df["date"][0], "%Y%m%d")
         self.dfInfo = dfInfo
         self.db = dbHandle()
-        self.initCleanRegulation()
+        # self.initCleanRegulation()
 
     def initList(self):
         self.removeList = []
