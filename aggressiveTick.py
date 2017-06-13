@@ -9,12 +9,13 @@ from dbHandle import dbHandle
 
 class AggregateTickData(object):
 
-    def __init__(self, dfInfo, date):
+    def __init__(self, dfInfo, date, df):
         self.timeFilePath = os.getcwd() + '/' + 'timeSeriesFile/'
         self.barDict = {}
         self.splitDict = {}
         self.dfInfo = dfInfo
-        self.Symbol = ['a']
+        self.df = df
+        self.Symbol = 'a'
         self.db = dbHandle()
         self.timePoint = date
         self.initStart()
@@ -24,24 +25,22 @@ class AggregateTickData(object):
         db = self.db.get_db("localhost", 27017, 'WIND_TICK_DB')
         names = self.db.get_all_colls(db)
         for i in names:
-            self.df = pd.DataFrame(list(self.db.get_specificDayItems(db, i, self.timePoint)))
             self.genKData(i, self.df)
 
     def getTimeList(self):
         if not os.path.exists(self.timeFilePath):
             os.makedirs(self.timeFilePath)
-        filePath = self.timeFilePath + 'timeSeries.pickle'
+        filePath = self.timeFilePath + 'timeSeries_' + self.Symbol + '.pickle'
         if os.path.exists(filePath) and datetime.datetime.fromtimestamp(os.path.getmtime(filePath)).replace(hour=0,minute=0,second=0,microsecond=0) == \
             datetime.datetime.today().replace(hour=0,minute=0,second=0,microsecond=0):
             with open(filePath, 'rb') as handle:
                 self.splitDict = pickle.load(handle)
         else:
-            for i in self.Symbol:
-                self.genTimeList(i)
+            self.genTimeList(self.Symbol)
             self.saveTimeList()
 
     def saveTimeList(self):
-        with open(self.timeFilePath + 'timeSeries.pickle', 'wb') as handle:
+        with open(self.timeFilePath + 'timeSeries_' + self.Symbol + '.pickle', 'wb') as handle:
             pickle.dump(self.splitDict, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     def genTimeList(self, symbol):

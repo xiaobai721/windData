@@ -18,8 +18,8 @@ class Main(object):
             self.date = datetime.datetime.strptime(i.split('\\')[-1].split('_')[-1][:-4], '%Y%m%d')
             self.dfInfo = self.loadInformation()
             dfData = LoadMatFile(i).dfData
-            CleanData(dfData, self.dfInfo)
-            AggregateTickData(self.dfInfo, self.date)
+            self.df = CleanData(dfData, self.dfInfo).df
+            AggregateTickData(self.dfInfo, self.date, self.df)
 
     def parseMatFile(self):
         fileList = []
