@@ -9,25 +9,27 @@ from dbHandle import dbHandle
 
 class AggregateTickData(object):
 
-    def __init__(self, dfInfo, date, df):
+    def __init__(self, dfInfo, date, aucTime):
         self.timeFilePath = os.getcwd() + '/' + 'timeSeriesFile/'
         self.barDict = {}
         self.splitDict = {}
         self.dfInfo = dfInfo
-        self.df = df
-        self.Symbol = 'a'
         self.db = dbHandle()
         self.timePoint = date
+        self.cycle = [1, 5, 15, 30, 60]
+        self.AucTime = aucTime
         self.initStart()
 
     def initStart(self):
-        self.getTimeList()
+        self.getTimeList(self.cycle)
         db = self.db.get_db("localhost", 27017, 'WIND_TICK_DB')
         names = self.db.get_all_colls(db)
         for i in names:
+            self.Symbol = "".join([a for a in i if a.isalpha()]).lower()
+            self.df = self.db.get_specificDayItems(db, i, self.timePoint)
             self.genKData(i, self.df)
 
-    def getTimeList(self):
+    def getTimeList(self, cycle):
         if not os.path.exists(self.timeFilePath):
             os.makedirs(self.timeFilePath)
         filePath = self.timeFilePath + 'timeSeries_' + self.Symbol + '.pickle'
@@ -36,15 +38,14 @@ class AggregateTickData(object):
             with open(filePath, 'rb') as handle:
                 self.splitDict = pickle.load(handle)
         else:
-            self.genTimeList(self.Symbol)
+            self.genTimeList(self.Symbol, cycle)
             self.saveTimeList()
 
     def saveTimeList(self):
         with open(self.timeFilePath + 'timeSeries_' + self.Symbol + '.pickle', 'wb') as handle:
             pickle.dump(self.splitDict, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-    def genTimeList(self, symbol):
-        cycle = [1,5,15,30,60]
+    def genTimeList(self, symbol, cycle):
         tempDict = {}
         self.splitDict[symbol] = {}
         for c in cycle:
@@ -55,19 +56,20 @@ class AggregateTickData(object):
             for i in zip(*([iter(time1)] * 2)):
                 start = str(i[0]).strip()
                 end = str(i[1]).strip()
-                if '8:59' in start:
-                    start = '9:00'
+                if start in self.AucTime:
+                    start1 = datetime.datetime.strptime(start, "%H:%M:%S") + datetime.timedelta(minutes=1)
+                    start = start1.strftime("%H:%M:%S")
                 tempList = pd.date_range(start, end, freq=(str(c) + 'min')).time.tolist()
                 tempDict[c].extend(tempList)
-                # if len(tempList)%2:
                 tempDict[c].extend(pd.date_range(end, end, freq=(str(c) + 'min')).time.tolist())
             lst = list(set(tempDict[c]))
             lst.sort()
             self.splitDict[symbol][c] = lst
 
     def genKData(self, vtSymbol, df_data):
+        cycle = self.cycle[1:]
         self.gen1minKData(vtSymbol, df_data)
-        self.genOtherKData(vtSymbol)
+        self.genOtherKData(vtSymbol, cycle)
         self.gen1DayKData(vtSymbol)
 
     def gen1minKData(self, vtSymbol, df_data):
@@ -89,8 +91,7 @@ class AggregateTickData(object):
         dbNew = self.db.get_db("localhost", 27017, 'WIND_1_MIN_DB')
         self.db.insert2db(dbNew, vtSymbol, self.barDict[vtSymbol][c])
 
-    def genOtherKData(self, vtSymbol):
-        cycle = [5,15,30,60]
+    def genOtherKData(self, vtSymbol, cycle):
         for c in cycle:
             self.barDict[vtSymbol][c] = []
             for i in zip(*[iter(self.splitDict[vtSymbol][c][i:]) for i in range(2)]):
@@ -122,42 +123,18 @@ class AggregateTickData(object):
 
     def aggMethod(self, dfTemp):
         tempBar = {}
-        tempBar["windCode"] = dfTemp.iloc[0]["windCode"]
-        tempBar["code"] = dfTemp.iloc[0]["code"]
+        tempBar["vtSymbol"] = dfTemp.iloc[0]["vtSymbol"]
+        tempBar["symbol"] = dfTemp.iloc[0]["symbol"]
         tempBar["date"] = dfTemp.iloc[0]["date"]
         tempBar["time"] = dfTemp.iloc[0]["time"]
-        tempBar["lastPrice"] = float(dfTemp.iloc[-1]["lastPrice"])
-        tempBar["lastVolume"] = float(dfTemp.iloc[-1]["lastVolume"])
-        tempBar["lastTurnover"] = float(dfTemp.iloc[-1]["lastTurnover"])
         tempBar["openInterest"] = float(dfTemp.iloc[-1]["openInterest"])
-        tempBar["volume"] = float(sum(dfTemp["volume"]))
-        tempBar["turnover"] = float(sum(dfTemp["turnover"]))
-        tempBar["highPrice"] = float(max(dfTemp["highPrice"]))
-        tempBar["lowPrice"] = float(min(dfTemp["lowPrice"]))
-        tempBar["openPrice"] = float(dfTemp.iloc[0]["openPrice"])
-        tempBar["preClosePrice"] = float(dfTemp.iloc[-1]["preClosePrice"])
-        tempBar["position"] = float(dfTemp.iloc[-1]["position"])
-        tempBar["prePosition"] = float(dfTemp.iloc[-1]["prePosition"])
-        tempBar["askPrice1"] = float(max(dfTemp["askPrice1"]))
-        tempBar["askVolume1"] = float(max(dfTemp["askVolume1"]))
-        tempBar["bidPrice1"] = float(max(dfTemp["bidPrice1"]))
-        tempBar["bidVolume1"] = float(max(dfTemp["bidVolume1"]))
-        tempBar["askAvPrice"] = float(dfTemp["askPrice1"].mean())
-        tempBar["bidAvPrice"] = float(dfTemp["bidPrice1"].mean())
-        tempBar["totalAskVolume"] = float(sum(dfTemp["askVolume1"]))
-        tempBar["totalBidVolume"] = float(sum(dfTemp["bidVolume1"]))
-        tempBar["datetime"] = dfTemp.iloc[0]["datetime"]
-        tempBar["matchItems"] = 0
-        tempBar["tradeFlag"] = ''
-        tempBar["bsFlag"] = ''
-        tempBar["settlementPrice"] = 0
-        tempBar["curDelta"] = 0
-        tempBar["preSettlementPrice"] = 0
-        tempBar["index"] = 0
-        tempBar["stocks"] = 0
-        tempBar["ups"] = 0
-        tempBar["downs"] = 0
-        tempBar["holdLines"] = 0
+        tempBar["volume"] = float(dfTemp["lastVolume"].sum())
+        tempBar["turnover"] = float(dfTemp["lastTurnover"].sum())
+        tempBar["high"] = float(max(dfTemp["lastPrice"]))
+        tempBar["low"] = float(min(dfTemp["lastPrice"]))
+        tempBar["open"] = float(dfTemp.iloc[0]["lastPrice"])
+        tempBar["close"] = float(dfTemp.iloc[-1]["lastPrice"])
+        tempBar["datetime"] = dfTemp.iloc[0]["datetime"].replace(millseconds=0)
         return tempBar
 
 

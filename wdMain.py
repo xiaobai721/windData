@@ -11,15 +11,22 @@ class Main(object):
 
     def __init__(self):
         self.root = 'E:\\windDataOriginal'
+        self.dateList = []
+        self.AucTime = ['8:59:00', '20:59:00', '9:29:00', '9:14:00']
 
     def processTickData(self):
         self.fileList = self.parseMatFile()
         for i in self.fileList:
             self.date = datetime.datetime.strptime(i.split('\\')[-1].split('_')[-1][:-4], '%Y%m%d')
-            self.dfInfo = self.loadInformation()
+            self.dateList.append(self.date)
+            dfInfo = self.loadInformation()
             dfData = LoadMatFile(i).dfData
-            self.df = CleanData(dfData, self.dfInfo).df
-            AggregateTickData(self.dfInfo, self.date, self.df)
+            CleanData(dfData, dfInfo, self.AucTime)
+
+    def parse2CycleData(self):
+        for i in self.dateList:
+            dfInfo = self.loadInformation()
+            AggregateTickData(dfInfo, i, self.AucTime)
 
     def parseMatFile(self):
         fileList = []
@@ -54,3 +61,4 @@ class Main(object):
 if __name__ == '__main__':
     ee = Main()
     ee.processTickData()
+    ee.parse2CycleData()

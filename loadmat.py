@@ -16,7 +16,7 @@ class LoadMatFile(object):
         self.dfData = self.convert2df()
 
     def convert2df(self):
-        colNames = ['windCode','code','date','time','lastPrice','lastVolume','lastTurnover','matchItems','openInterest','tradeFlag','bsFlag','volume','turnover'
+        colNames = ['vtSymbol','symbol','date','time','lastPrice','lastVolume','lastTurnover','matchItems','openInterest','tradeFlag','bsFlag','volume','turnover'
                     ,'highPrice','lowPrice','openPrice','preClosePrice','settlementPrice','position','curDelta','preSettlementPrice','prePosition','askPrice1'
                     ,'askVolume1','bidPrice1','bidVolume1','askAvPrice','bidAvPrice','totalAskVolume','totalBidVolume','index','stocks','ups','downs','holdLines']
 
@@ -44,8 +44,8 @@ class LoadMatFile(object):
         vtSymbol = self.matFile.split('\\')[-1].split('_')[0]
         symbol = re.findall(r"[a-zA-Z]", vtSymbol)[0].lower()
         date = self.matFile.split('\\')[-1].split('_')[-1][:-4]
-        df["windCode"] = vtSymbol
-        df["code"] = symbol
+        df["vtSymbol"] = vtSymbol
+        df["symbol"] = symbol
         df["DT"] = df["date"] + ' ' + df["time"]
         df["datetime"] = df["DT"].map(lambda x:datetime.datetime.strptime(x, "%Y%m%d %H%M%S%f"))
         del df["DT"]
