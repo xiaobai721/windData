@@ -1,11 +1,13 @@
 '''
 主函数
 '''
-import os, datetime
+import os, datetime, time
 import pandas as pd
+import logging.config
 from loadmat import LoadMatFile
 from CleanData import CleanData
 from aggressiveTick import AggregateTickData
+from module_mylog import gLogger
 
 class Main(object):
 
@@ -17,6 +19,11 @@ class Main(object):
     def processTickData(self):
         self.fileList = self.parseMatFile()
         for i in self.fileList:
+            sym = i.split('\\')[-2]
+            if "SP-" in sym or "SPC-" in sym or "IMCI" in sym:
+                continue
+            # print ("start process tick data —— %s" %i)
+            gLogger.info("start process tick data —— %s" %i)
             self.date = datetime.datetime.strptime(i.split('\\')[-1].split('_')[-1][:-4], '%Y%m%d')
             self.dateList.append(self.date)
             dfInfo = self.loadInformation()
@@ -24,7 +31,8 @@ class Main(object):
             CleanData(dfData, dfInfo, self.AucTime)
 
     def parse2CycleData(self):
-        for i in self.dateList:
+        for i in list(set(self.dateList)):
+            gLogger.info("start parse cycle data —— %s" % i)
             dfInfo = self.loadInformation()
             AggregateTickData(dfInfo, i, self.AucTime)
 
@@ -34,7 +42,6 @@ class Main(object):
             if len(x[-1]) > 0 and '.mat' in x[-1][0]:
                 for j in x[-1]:
                     fileList.append(x[0] + '\\' + j)
-
         return fileList
 
     def loadInformation(self):

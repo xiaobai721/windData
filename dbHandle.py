@@ -4,6 +4,9 @@
 import datetime, json
 import pandas as pd
 from pymongo import MongoClient
+from module_mylog import gLogger
+
+
 
 class dbHandle(object):
 
@@ -36,4 +39,4 @@ class dbHandle(object):
         elif isinstance(df, list):
             dbNew[coll_name].insert_many(df)
         else:
-            print("data type trying to insert is not defined, please check!")
+            gLogger.error("data type trying to insert is not defined, please check!")

@@ -5,22 +5,8 @@
 
 import pandas as pd
 import time, datetime
-import logging
-import os
 from dbHandle import dbHandle
-
-
-LOG_FILE = os.getcwd() + '/' + 'LogFile/' + time.strftime('%Y-%m-%d',time.localtime(time.time()))  + ".log"
-logging.basicConfig(filename=LOG_FILE, level=logging.DEBUG)
-logger = logging.getLogger(__name__)
-
-def add_log(func):
-    def newFunc(*args, **kwargs):
-        logger.warning("Before %s() call on %s" % (func.__name__, time.strftime("%Y-%m-%d %H:%M:%S")))
-        ret = func(*args, **kwargs)
-        logger.warning("After %s() call on %s" % (func.__name__, time.strftime("%Y-%m-%d %H:%M:%S")))
-        return ret
-    return newFunc
+from module_mylog import gLogger
 
 class CleanData(object):
 
@@ -38,11 +24,10 @@ class CleanData(object):
         self.logList = []
 
     def initCleanRegulation(self):
+        gLogger.info("start initCleanRegulation")
         dbNew = self.db.get_db("localhost", 27017, 'WIND_TICK_DB')
         i = self.df["vtSymbol"][0]
         try:
-            print ("start process collection %s........." %(i))
-            logger.warning("start process collection %s........." %(i))
             self.Symbol = "".join([a for a in i if a.isalpha()]).lower()
             self.initList()
             if not self.df.empty:
@@ -57,46 +42,55 @@ class CleanData(object):
                 self.delItemsFromRemove()
                 self.db.insert2db(dbNew,i, self.df)
         except Exception as e:
-            print ("Exception: %s" %e)
-            logger.error("Exception: %s" %e)
+            gLogger.exception("Exception: %s" %e)
 
-    @add_log
     def cleanIllegalTradingTime(self):
         """删除非交易时段数据"""
-        self.df['illegalTime'] = self.df["time"].map(self.StandardizeTimePeriod)
-        self.df['illegalTime'] = self.df['illegalTime'].fillna(False)
-        for i,row in self.df[self.df['illegalTime'] == False].iterrows():
-            self.removeList.append(i)
-            logger.info('remove index = %d' %(i))
-        del self.df["illegalTime"]
+        try:
+            gLogger.info("start cleanIllegalTradingTime ")
+            self.df['illegalTime'] = self.df["time"].map(self.StandardizeTimePeriod)
+            self.df['illegalTime'] = self.df['illegalTime'].fillna(False)
+            for i,row in self.df[self.df['illegalTime'] == False].iterrows():
+                self.removeList.append(i)
+                gLogger.debug('remove index = %d' %(i))
+            del self.df["illegalTime"]
+        except Exception as e:
+            gLogger.exception("Exception: %s" %e)
 
-    @add_log
     def reserveLastTickInAuc(self):
         """保留集合竞价期间最后一个tick数据"""
-        self.df["structTime"] = self.df["time"].map(lambda x: datetime.datetime.strptime(x, "%H%M%S%f"))
-        for st in self.AucTime:
-            start = datetime.datetime.strptime(st, '%H:%M:%S')
-            end =  start + datetime.timedelta(minutes=1)
-            p1 = self.df["structTime"] >= start
-            p2 = self.df["structTime"] < end
-            dfTemp = self.df.loc[p1 & p2]
-            dfTemp = dfTemp.sort_values(by = ["structTime"], ascending=False)
-            for i in dfTemp.index.values[1:]:
-                self.removeList.append(i)
-                logger.info('remove index = %d' % i)
+        try:
+            gLogger.info("start reserveLastTickInAuc")
+            self.df["structTime"] = self.df["time"].map(lambda x: datetime.datetime.strptime(x, "%H%M%S%f"))
+            for st in self.AucTime:
+                start = datetime.datetime.strptime(st, '%H:%M:%S')
+                end =  start + datetime.timedelta(minutes=1)
+                p1 = self.df["structTime"] >= start
+                p2 = self.df["structTime"] < end
+                dfTemp = self.df.loc[p1 & p2]
+                dfTemp = dfTemp.sort_values(by = ["structTime"], ascending=False)
+                for i in dfTemp.index.values[1:]:
+                    self.removeList.append(i)
+                    gLogger.debug('remove index = %d' % i)
+        except Exception as e:
+            gLogger.exception("Exception : %s" %e)
 
-    @add_log
+
     def cleanSameTimestamp(self):
         """清除重复时间戳，记录"""
-        dfTemp = self.df.sort_values(by=['datetime'], ascending=False)
-        idList = dfTemp[dfTemp["datetime"].duplicated()].index
-        for i in idList.values:
-            self.removeList.append(i)
-            logger.info('remove index = %d' % i)
+        try:
+            gLogger.info("start cleanSameTimestamp")
+            dfTemp = self.df.sort_values(by=['datetime'], ascending=False)
+            idList = dfTemp[dfTemp["datetime"].duplicated()].index
+            for i in idList.values:
+                self.removeList.append(i)
+                gLogger.debug('remove index = %d' % i)
+        except Exception as e:
+            gLogger.exception("Exception : %s" %e)
 
-    @add_log
     def cleanNullVolTurn(self):
         """Tick有成交，但volume和turnover为0"""
+        gLogger.info("start cleanNullVolTurn")
         f = lambda x: float(x)
         self.df["lastVolume"] = self.df["lastVolume"].map(f)
         self.df["lastTurnover"] = self.df["lastTurnover"].map(f)
@@ -117,12 +111,13 @@ class CleanData(object):
         # lastTurn为0,lastVolume和lastPrice不为0
         dfTemp = self.df.loc[~lastTurn & lastVol & lastP]
         if not dfTemp.empty:
+            gLogger.debug("process data that lastTurn is null but lastVol and lastP are not")
             dfTemp["lastTurnover"] = dfTemp["lastVolume"] * dfTemp["lastPrice"] * float(tu)
             for i, row in dfTemp.iterrows():
                 if i not in self.removeList:
                     self.df.loc[i, "lastTurnover"] = row["lastTurnover"]
                     self.updateList.append(i)
-                    logger.info('lastTurn = 0, update index = %d' % (i))
+                    gLogger.debug('lastTurn = 0, update index = %d' % (i))
 
         # lastVolume为0,lastTurnover和lastPrice不为0
         dfTemp = self.df.loc[lastTurn & ~lastVol & lastP]
@@ -133,17 +128,17 @@ class CleanData(object):
                 if i not in self.removeList:
                     self.df.loc[i, "lastVolume"] = row["lastVolume"]
                     self.updateList.append(i)
-                    logger.info('lastVol = 0, update index = %d' % (i))
+                    gLogger.debug('lastVol = 0, update index = %d' % (i))
 
         # lastPrice为0,lastVolume和lastTurnover不为0
         dfTemp = self.df.loc[lastTurn & lastVol & ~lastP]
         if not dfTemp.empty:
-            dfTemp.loc["lastPrice"] = dfTemp.loc["lastTurnover"] / (dfTemp.loc["lastVolume"] * float(tu))
+            dfTemp["lastPrice"] = dfTemp["lastTurnover"] / (dfTemp["lastVolume"] * float(tu))
             for i, row in dfTemp.iterrows():
                 if i not in self.removeList:
                     self.df.loc[i, "lastPrice"] = row["lastPrice"]
                     self.updateList.append(i)
-                    logger.info('lastPrice = 0, update index = %d' % (i))
+                    gLogger.debug('lastPrice = 0, update index = %d' % (i))
 
         # lastVolume和lastTurnover均不为0
         dfTemp = self.df.loc[lastVol & lastTurn & (Vol | Turn | openIn)]
@@ -154,7 +149,7 @@ class CleanData(object):
                     if i not in self.removeList:
                         self.removeList.append(i)
                         self.logList.append(i)
-                        logger.info('Vol & openInterest & turn = 0, remove index = %d' % i)
+                        gLogger.debug('Vol & openInterest & turn = 0, remove index = %d' % i)
 
             # turnover为0,lastVol不为0
             for i, row in self.df[Turn & lastVol].iterrows():
@@ -163,7 +158,7 @@ class CleanData(object):
                     row["turnover"] = self.df.loc[preIndex, "turnover"] + row["lastTurnover"]
                     self.df.loc[i, "turnover"] = row["turnover"]
                     self.updateList.append(i)
-                    logger.info('Turn = 0 & lastTurn != 0, update index = %d' % (i))
+                    gLogger.debug('Turn = 0 & lastTurn != 0, update index = %d' % (i))
 
             # volume为0,lastVol不为0
             for i, row in self.df[Vol & lastVol].iterrows():
@@ -172,15 +167,15 @@ class CleanData(object):
                     row["volume"] = self.df.loc[preIndex, "volume"] + row["lastVolume"]
                     self.df.loc[i, "volume"] = row["volume"]
                     self.updateList.append(i)
-                    logger.info('Vol = 0 & lastVol != 0, update index = %d' % (i))
+                    gLogger.debug('Vol = 0 & lastVol != 0, update index = %d' % (i))
 
-    @add_log
     def cleanNullOpenInter(self):
         """持仓量为0,用上一个填充"""
+        gLogger.info("start cleanNullOpenInter")
         self.paddingWithPrevious("openInterest")
 
-    @add_log
     def cleanNullPriceIndicator(self):
+        gLogger.info("start cleanNullPriceIndicator")
         lastP = self.df["lastPrice"] == 0.0
         high = self.df["highPrice"] == 0.0
         low = self.df["lowPrice"] == 0.0
@@ -188,10 +183,11 @@ class CleanData(object):
         askP = self.df["askPrice1"] == 0.0
         # 如果均为0，删除
         if self.df.loc[lastP & high & low & bidP & askP]._values.any():
+            gLogger.debug("process data that all price indicators are null")
             for i in self.df.loc[lastP & high & low & bidP & askP].index.values:
                 if i not in self.removeList:
                     self.removeList.append(i)
-                    logger.info('All Price is Null, remove index = %d' % i)
+                    gLogger.debug('All Price is Null, remove index = %d' % i)
 
         # 某些为0，填充
         self.paddingWithPrevious("lastPrice")
@@ -200,8 +196,8 @@ class CleanData(object):
         self.paddingWithPrevious("bidPrice1")
         self.paddingWithPrevious("askPrice1")
 
-    @add_log
     def recordExceptionalPrice(self):
+        gLogger.info("start recordExceptionalPrice")
         self.estimateExceptional("lastPrice")
         self.estimateExceptional("highPrice")
         self.estimateExceptional("lowPrice")
@@ -209,32 +205,45 @@ class CleanData(object):
         self.estimateExceptional("askPrice1")
 
     def delItemsFromRemove(self):
-        indexList = list(set(self.removeList))
-        self.df = self.df.drop(indexList,axis=0)
+        try:
+            gLogger.info("start delItemsFromRemove")
+            indexList = list(set(self.removeList))
+            self.df = self.df.drop(indexList,axis=0)
+        except Exception as e:
+            gLogger.exception("Exception : %s" %e)
 
     def estimateExceptional(self,field):
-        dfTemp = pd.DataFrame(self.df[field])
-        dfTemp["shift"] = self.df[field].shift(1)
-        dfTemp["delta"] = abs(dfTemp[field] - dfTemp["shift"])
-        dfTemp = dfTemp.dropna(axis=0, how='any')
-        dfTemp["IsExcept"] = dfTemp["delta"] >= dfTemp["shift"] * 0.12
-        for i, row in dfTemp.loc[dfTemp["IsExcept"]].iterrows():
-            if i not in self.removeList:
-                self.logList.append(i)
-                logger.info('Field = %s, log index = %d' % (field, i))
+        try:
+            gLogger.info("start estimateExceptional, field = %s" %field)
+            dfTemp = pd.DataFrame(self.df[field])
+            dfTemp["shift"] = self.df[field].shift(1)
+            dfTemp["delta"] = abs(dfTemp[field] - dfTemp["shift"])
+            dfTemp = dfTemp.dropna(axis=0, how='any')
+            dfTemp["IsExcept"] = dfTemp["delta"] >= dfTemp["shift"] * 0.12
+            for i, row in dfTemp.loc[dfTemp["IsExcept"]].iterrows():
+                if i not in self.removeList:
+                    self.logList.append(i)
+                    gLogger.debug('Field = %s, log index = %d' % (field, i))
+        except Exception as e:
+            gLogger.exception("Exception : %s" %e)
+
 
     def paddingWithPrevious(self,field):
-        for i, row in self.df.loc[self.df[field] == 0.0].iterrows():
-            if i not in self.removeList:
-                preIndex = i - 1
-                if preIndex >= 0 and i not in self.removeList:
-                    row[field] = self.df.loc[preIndex,field]
-                    self.df.loc[i,field] = row[field]
-                    self.updateList.append(i)
-                    logger.info('Field = %s, update index = %d' % (field, i))
+        try:
+            gLogger.info("start paddingWithPrevious, field = %s" %field)
+            for i, row in self.df.loc[self.df[field] == 0.0].iterrows():
+                if i not in self.removeList:
+                    preIndex = i - 1
+                    if preIndex >= 0 and i not in self.removeList:
+                        row[field] = self.df.loc[preIndex,field]
+                        self.df.loc[i,field] = row[field]
+                        self.updateList.append(i)
+                        gLogger.debug('Field = %s, update index = %d' % (field, i))
+        except Exception as e:
+            gLogger.exception("Exception : %s" %e)
 
     def StandardizeTimePeriod(self,target):
-        tar = str(int(target))
+        tar = target
         try:
             tp = self.dfInfo.loc[self.Symbol]["CurrPeriod"]
             time1 = [t for i in tp.split(',') for t in i.split('-')]
@@ -247,17 +256,19 @@ class CleanData(object):
                 end = time.strptime(str(i[1]).strip(), '%H:%M')
                 if self.compare_time(start,end,tar,ms):
                     return True
-
         except Exception as e:
-            print (e)
+            gLogger.exception("Exception when StandardizeTimePeriod e = %s time = %s" %(e,str(tar)))
 
     def compare_time(self,s1,s2,st,ms):
         """由于time类型没有millisecond，故单取ms进行逻辑判断"""
-        if s2 == time.strptime('00:00', '%H:%M'):
-            s2 = time.strptime('23:59:61', '%H:%M:%S')
-        if st > s1 and st < s2:
-            return True
-        elif (st == s1 and int(ms) >= 0) or (st == s2 and int(ms) == 0):
-            return True
-        else:
-            return False
+        try:
+            if s2 == time.strptime('00:00', '%H:%M'):
+                s2 = time.strptime('23:59:61', '%H:%M:%S')
+            if st > s1 and st < s2:
+                return True
+            elif (st == s1 and int(ms) >= 0) or (st == s2 and int(ms) == 0):
+                return True
+            else:
+                return False
+        except Exception as e:
+            gLogger.exception("Exception when compare_time e = %s" %e)
