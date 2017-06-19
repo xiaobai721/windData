@@ -22,28 +22,28 @@ class AggregateTickData(object):
         self.initStart()
 
     def initStart(self):
-        self.getTimeList(self.cycle)
         db = self.db.get_db("localhost", 27017, 'WIND_TICK_DB')
         names = self.db.get_all_colls(db)
         for i in names:
             self.Symbol = "".join([a for a in i if a.isalpha()]).lower()
-            self.df = self.db.get_specificDayItems(db, i, self.timePoint)
-            self.genKData(i, self.df)
+            self.getTimeList(self.cycle)
+            self.df = pd.DataFrame.from_records(list(self.db.get_specificDayItems(db, i, self.timePoint)))
+            self.genKData(self.Symbol, self.df)
 
     def getTimeList(self, cycle):
         try:
             gLogger.info("start getTimeList")
             if not os.path.exists(self.timeFilePath):
                 os.makedirs(self.timeFilePath)
-            filePath = self.timeFilePath + 'timeSeries_' + self.Symbol + '.pickle'
-            if os.path.exists(filePath) and datetime.datetime.fromtimestamp(os.path.getmtime(filePath)).replace(hour=0,minute=0,second=0,microsecond=0) == \
-                datetime.datetime.today().replace(hour=0,minute=0,second=0,microsecond=0):
-                gLogger.info("splitDict is load from pickle file")
-                with open(filePath, 'rb') as handle:
-                    self.splitDict[self.Symbol] = pickle.load(handle)
-            else:
-                self.genTimeList(self.Symbol, cycle)
-                self.saveTimeList()
+            # filePath = self.timeFilePath + 'timeSeries_' + self.Symbol + '.pickle'
+            # if os.path.exists(filePath) and datetime.datetime.fromtimestamp(os.path.getmtime(filePath)).replace(hour=0,minute=0,second=0,microsecond=0) == \
+            #     datetime.datetime.today().replace(hour=0,minute=0,second=0,microsecond=0):
+            #     gLogger.info("splitDict is load from pickle file")
+            #     with open(filePath, 'rb') as handle:
+            #         self.splitDict[self.Symbol] = pickle.load(handle)
+            # else:
+            self.genTimeList(self.Symbol, cycle)
+            self.saveTimeList()
         except Exception as e:
             gLogger.exception("Exception : %s" %e)
 
@@ -65,11 +65,15 @@ class AggregateTickData(object):
                     start = str(i[0]).strip()
                     end = str(i[1]).strip()
                     if start in self.AucTime:
-                        start1 = datetime.datetime.strptime(start, "%H:%M:%S") + datetime.timedelta(minutes=1)
-                        start = start1.strftime("%H:%M:%S")
+                        start1 = datetime.datetime.strptime(start, "%H:%M") + datetime.timedelta(minutes=1)
+                        start = start1.strftime("%H:%M")
+                    else:
+                        while([60 if datetime.datetime.strptime(start, "%H:%M").minute == 0 else datetime.datetime.strptime(start, "%H:%M").minute][0]%int(c) != 0):
+                            start1 = datetime.datetime.strptime(start, "%H:%M") + datetime.timedelta(minutes=10)
+                            start = start1.strftime("%H:%M")
                     tempList = pd.date_range(start, end, freq=(str(c) + 'min')).time.tolist()
                     tempDict[c].extend(tempList)
-                    tempDict[c].extend(pd.date_range(end, end, freq=(str(c) + 'min')).time.tolist())
+                    # tempDict[c].extend(pd.date_range(end, end, freq=(str(c) + 'min')).time.tolist())
                 lst = list(set(tempDict[c]))
                 lst.sort()
                 self.splitDict[symbol][c] = lst
@@ -78,10 +82,13 @@ class AggregateTickData(object):
 
 
     def genKData(self, vtSymbol, df_data):
-        cycle = self.cycle[1:]
-        self.gen1minKData(vtSymbol, df_data)
-        self.genOtherKData(vtSymbol, cycle)
-        self.gen1DayKData(vtSymbol)
+        if not df_data.empty:
+            cycle = self.cycle[1:]
+            self.gen1minKData(vtSymbol, df_data)
+            self.genOtherKData(vtSymbol, cycle)
+            self.gen1DayKData(vtSymbol)
+        else:
+            gLogger.exception("df data is empty!")
 
     def gen1minKData(self, vtSymbol, df_data):
         try:
@@ -89,16 +96,16 @@ class AggregateTickData(object):
             c = 1
             self.barDict[vtSymbol] = {}
             self.barDict[vtSymbol][c] = []
-            self.df["structTime"] = self.df["time"].map(lambda x:time.strptime(x, "%H%M%S%f"))
+            self.df["structTime"] = self.df["time"].map(lambda x:datetime.datetime.strptime(x, "%H%M%S%f"))
             for i in zip(*[iter(self.splitDict[vtSymbol][c][i:]) for i in range(2)]):
-                start = time.strptime(str(i[0]).strip(), '%H:%M:%S')
-                end = time.strptime(str(i[1]).strip(), '%H:%M:%S')
-                if '9:00:00' in str(i[0]):
-                    start = time.strptime('8:59:00', '%H:%M:%S')
+                start = datetime.datetime.strptime(str(i[0]).strip(), '%H:%M:%S')
+                end = datetime.datetime.strptime(str(i[1]).strip(), '%H:%M:%S')
+                if (start - datetime.timedelta(minutes=1)).strftime('%H:%M')in self.AucTime:
+                    start = start - datetime.timedelta(minutes=1)
                 p1 = df_data["structTime"] >= start
                 p2 = df_data["structTime"] < end
                 dfTemp = df_data.loc[p1 & p2]
-                if not dfTemp.empty:
+                if len(dfTemp) > 2:
                     self.barDict[vtSymbol][c].append(self.aggMethod(dfTemp))
 
             dbNew = self.db.get_db("localhost", 27017, 'WIND_1_MIN_DB')
@@ -117,7 +124,7 @@ class AggregateTickData(object):
                     items = list(map(self.selectItems, self.barDict[vtSymbol][1]))
                     items = list(filter(lambda x:x is not None, items))
                     dfTemp = pd.DataFrame(items)
-                    if not dfTemp.empty:
+                    if len(dfTemp) > 2:
                         self.barDict[vtSymbol][c].append(self.aggMethod(dfTemp))
 
                 dbNew = self.db.get_db("localhost", 27017, 'WIND_' + str(c) + '_MIN_DB')
@@ -158,7 +165,7 @@ class AggregateTickData(object):
             tempBar["low"] = float(min(dfTemp["lastPrice"]))
             tempBar["open"] = float(dfTemp.iloc[0]["lastPrice"])
             tempBar["close"] = float(dfTemp.iloc[-1]["lastPrice"])
-            tempBar["datetime"] = dfTemp.iloc[0]["datetime"].replace(millseconds=0)
+            tempBar["datetime"] = dfTemp.iloc[0]["datetime"]
             return tempBar
         except Exception as e:
             gLogger.exception("Exception when exec aggMethod e:%s" %e)

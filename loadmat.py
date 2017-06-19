@@ -50,7 +50,7 @@ class LoadMatFile(object):
             df["time"] = df["time"].map(f)
             df["time"] = df["time"].map(lambda x: x.zfill(9))
             vtSymbol = self.matFile.split('\\')[-1].split('_')[0]
-            symbol = re.findall(r"[a-zA-Z]", vtSymbol)[0].lower()
+            symbol = "".join([a for a in vtSymbol if a.isalpha()]).lower()
             date = self.matFile.split('\\')[-1].split('_')[-1][:-4]
             df["vtSymbol"] = vtSymbol
             df["symbol"] = symbol

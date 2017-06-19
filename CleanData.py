@@ -28,6 +28,8 @@ class CleanData(object):
         dbNew = self.db.get_db("localhost", 27017, 'WIND_TICK_DB')
         i = self.df["vtSymbol"][0]
         try:
+            if "IFC" in i or "IHC" in i or "ICC" in i or "TFC" in i:
+                i = i[:2]
             self.Symbol = "".join([a for a in i if a.isalpha()]).lower()
             self.initList()
             if not self.df.empty:
@@ -63,7 +65,7 @@ class CleanData(object):
             gLogger.info("start reserveLastTickInAuc")
             self.df["structTime"] = self.df["time"].map(lambda x: datetime.datetime.strptime(x, "%H%M%S%f"))
             for st in self.AucTime:
-                start = datetime.datetime.strptime(st, '%H:%M:%S')
+                start = datetime.datetime.strptime(st, '%H:%M')
                 end =  start + datetime.timedelta(minutes=1)
                 p1 = self.df["structTime"] >= start
                 p2 = self.df["structTime"] < end
@@ -72,6 +74,7 @@ class CleanData(object):
                 for i in dfTemp.index.values[1:]:
                     self.removeList.append(i)
                     gLogger.debug('remove index = %d' % i)
+            del self.df["structTime"]
         except Exception as e:
             gLogger.exception("Exception : %s" %e)
 
