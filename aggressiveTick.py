@@ -94,6 +94,7 @@ class AggregateTickData(object):
         try:
             gLogger.info("start gen1minKData , vtSymbol is %s" %vtSymbol)
             c = 1
+            self.cflag = 1
             self.barDict[vtSymbol] = {}
             self.barDict[vtSymbol][c] = []
             self.df["structTime"] = self.df["time"].map(lambda x:datetime.datetime.strptime(x, "%H%M%S%f"))
@@ -117,6 +118,7 @@ class AggregateTickData(object):
         for c in cycle:
             try:
                 gLogger.info("start genOtherKData cycle = %d" %c)
+                self.cflag = c
                 self.barDict[vtSymbol][c] = []
                 for i in zip(*[iter(self.splitDict[vtSymbol][c][i:]) for i in range(2)]):
                     self.start1 = time.strptime(str(i[0]).strip(), '%H:%M:%S')
@@ -154,19 +156,34 @@ class AggregateTickData(object):
     def aggMethod(self, dfTemp):
         try:
             tempBar = {}
-            tempBar["vtSymbol"] = dfTemp.iloc[0]["vtSymbol"]
-            tempBar["symbol"] = dfTemp.iloc[0]["symbol"]
-            tempBar["date"] = dfTemp.iloc[0]["date"]
-            tempBar["time"] = dfTemp.iloc[0]["time"]
-            tempBar["openInterest"] = float(dfTemp.iloc[-1]["openInterest"])
-            tempBar["volume"] = float(dfTemp["lastVolume"].sum())
-            tempBar["turnover"] = float(dfTemp["lastTurnover"].sum())
-            tempBar["high"] = float(max(dfTemp["lastPrice"]))
-            tempBar["low"] = float(min(dfTemp["lastPrice"]))
-            tempBar["open"] = float(dfTemp.iloc[0]["lastPrice"])
-            tempBar["close"] = float(dfTemp.iloc[-1]["lastPrice"])
-            tempBar["datetime"] = dfTemp.iloc[0]["datetime"]
-            return tempBar
+            if self.cflag == 1:
+                tempBar["vtSymbol"] = dfTemp.iloc[0]["vtSymbol"]
+                tempBar["symbol"] = dfTemp.iloc[0]["symbol"]
+                tempBar["date"] = dfTemp.iloc[0]["date"]
+                tempBar["time"] = dfTemp.iloc[0]["time"]
+                tempBar["openInterest"] = float(dfTemp.iloc[-1]["openInterest"])
+                tempBar["volume"] = float(dfTemp["lastVolume"].sum())
+                tempBar["turnover"] = float(dfTemp["lastTurnover"].sum())
+                tempBar["high"] = float(max(dfTemp["lastPrice"]))
+                tempBar["low"] = float(min(dfTemp["lastPrice"]))
+                tempBar["open"] = float(dfTemp.iloc[0]["lastPrice"])
+                tempBar["close"] = float(dfTemp.iloc[-1]["lastPrice"])
+                tempBar["datetime"] = dfTemp.iloc[0]["datetime"]
+                return tempBar
+            else:
+                tempBar["vtSymbol"] = dfTemp.iloc[0]["vtSymbol"]
+                tempBar["symbol"] = dfTemp.iloc[0]["symbol"]
+                tempBar["date"] = dfTemp.iloc[0]["date"]
+                tempBar["time"] = dfTemp.iloc[0]["time"]
+                tempBar["openInterest"] = float(dfTemp.iloc[-1]["openInterest"])
+                tempBar["volume"] = float(dfTemp["volume"].sum())
+                tempBar["turnover"] = float(dfTemp["turnover"].sum())
+                tempBar["high"] = float(max(dfTemp["high"]))
+                tempBar["low"] = float(min(dfTemp["low"]))
+                tempBar["open"] = float(dfTemp.iloc[0]["open"])
+                tempBar["close"] = float(dfTemp.iloc[-1]["close"])
+                tempBar["datetime"] = dfTemp.iloc[0]["datetime"]
+                return tempBar
         except Exception as e:
             gLogger.exception("Exception when exec aggMethod e:%s" %e)
 

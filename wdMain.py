@@ -1,9 +1,8 @@
 '''
 主函数
 '''
-import os, datetime, time
+import os, datetime, multiprocessing
 import pandas as pd
-import logging.config
 from loadmat import LoadMatFile
 from CleanData import CleanData
 from aggressiveTick import AggregateTickData
@@ -18,7 +17,6 @@ class Main(object):
 
     def processTickData(self):
         self.fileList = self.parseMatFile()
-        self.fileList = ["E:\\windDataOriginal\\commodity\\20170531\\bb1805\\bb1805_20170531.mat"]
         for i in self.fileList:
             sym = i.split('\\')[-2]
             if "SP-" in sym or "SPC-" in sym or "IMCI" in sym :
@@ -31,12 +29,19 @@ class Main(object):
             CleanData(dfData, dfInfo, self.AucTime)
 
     def parse2CycleData(self):
+        pool = multiprocessing.Pool(processes=4)
+        result = []
         self.dateList = [datetime.datetime(2017, 5, 31, 0, 0),datetime.datetime(2017, 6, 1, 0, 0),datetime.datetime(2017, 6, 2, 0, 0)]
         for i in list(set(self.dateList)):
             gLogger.info("start parse cycle data —— %s" % i)
             self.date = i
             dfInfo = self.loadInformation()
-            AggregateTickData(dfInfo, i, self.AucTime)
+            # AggregateTickData(dfInfo, i, self.AucTime)
+            result.append(pool.apply_async(func=AggregateTickData, args=(dfInfo, i, self.AucTime)))
+        pool.close()
+        pool.join()
+        for j in result:
+            print(j.get())
 
     def parseMatFile(self):
         fileList = []
