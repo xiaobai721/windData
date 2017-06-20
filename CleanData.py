@@ -26,10 +26,10 @@ class CleanData(object):
     def initCleanRegulation(self):
         gLogger.info("start initCleanRegulation")
         dbNew = self.db.get_db("localhost", 27017, 'WIND_TICK_DB')
-        i = self.df["vtSymbol"][0]
+        j = self.df["vtSymbol"][0]
         try:
-            if "IFC" in i or "IHC" in i or "ICC" in i or "TFC" in i:
-                i = i[:2]
+            if "IFC" in j or "IHC" in j or "ICC" in j or "TFC" in j:
+                i = j[:2]
             self.Symbol = "".join([a for a in i if a.isalpha()]).lower()
             self.initList()
             if not self.df.empty:
@@ -42,8 +42,8 @@ class CleanData(object):
                 self.recordExceptionalPrice()
 
                 self.delItemsFromRemove()
-                self.db.insert2db(dbNew,i, self.df)
-            gLogger.info("finish clean data with %s" %i)
+                self.db.insert2db(dbNew,j, self.df)
+            gLogger.info("finish clean data with %s" %j)
         except Exception as e:
             gLogger.exception("Exception: %s" %e)
 

@@ -17,11 +17,12 @@ class Main(object):
 
     def processTickData(self):
         self.fileList = self.parseMatFile()
-        p = multiprocessing.Pool(5)
+        p = multiprocessing.Pool(1)
         manager = multiprocessing.Manager()
         work_queue = manager.Queue()
         done_queue = manager.Queue()
         lock = manager.Lock()
+        self.fileList = ["E:\\windDataOriginal\\finance\\20170601\IFC1\\IFC1_20170601.mat"]
         for i in self.fileList:
             sym = i.split('\\')[-2]
             if "SP-" in sym or "SPC-" in sym or "IMCI" in sym :
