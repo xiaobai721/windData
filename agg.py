@@ -15,24 +15,22 @@ class AggregateTickData(object):
         self.barDict = {}
         self.splitDict = {}
         self.dfInfo = dfInfo
-        self.db = dbHandle()
         self.timePoint = date
         self.cycle = [1, 5, 15, 30, 60]
         self.AucTime = aucTime
         self.initStart()
 
     def initStart(self):
-        # multiprocessing.freeze_support()
         p = multiprocessing.Pool(5)
-        # processes = []
-        # work_queue = multiprocessing.Queue()
-        # done_queue = multiprocessing.Queue()
         manager = multiprocessing.Manager()
         work_queue = manager.Queue()
         done_queue = manager.Queue()
         lock = manager.Lock()
+
+        self.db = dbHandle(lock)
         db = self.db.get_db("localhost", 27017, 'WIND_TICK_DB')
         names = self.db.get_all_colls(db)
+
         for i in names:
             Symbol = "".join([a for a in i if a.isalpha()]).lower()
             df = pd.DataFrame.from_records(list(self.db.get_specificDayItems(db, i, self.timePoint)))
@@ -49,17 +47,11 @@ class AggregateTickData(object):
 
         p.close()
         p.join()
-            # p.start()
-            # processes.append(p)
 
-
-        # for p in processes:
-        #     p.
-        #     p.join()
         done_queue.put('STOP')
 
         for status in iter(done_queue.get_nowait, 'STOP'):
-            print (status)
+            gLogger.warning(status)
 
     def onto(self, work_queue, done_queue, lock):
         for v in iter(work_queue.get_nowait, 'STOP'):
@@ -69,11 +61,11 @@ class AggregateTickData(object):
                 vtSymbol = v[2]
                 gLogger.info('Run task %s (%s)...' % (vtSymbol, os.getpid()))
                 self.getTimeList(self.cycle, Symbol, lock)
-                self.genKData(vtSymbol, df, lock)
+                self.genKData(vtSymbol, df)
                 done_queue.put("%s process has done!" %vtSymbol)
                 time.sleep(1)
             except Exception as e:
-                done_queue.put("failed on %s process with %s!" %(vtSymbol, e))
+                done_queue.put("failed on process with %s!" %e)
         return True
 
     def getTimeList(self, cycle, Symbol, lock):
@@ -111,8 +103,9 @@ class AggregateTickData(object):
                         start1 = datetime.datetime.strptime(start, "%H:%M") + datetime.timedelta(minutes=1)
                         start = start1.strftime("%H:%M")
                     else:
-                        while([60 if datetime.datetime.strptime(start, "%H:%M").minute == 0 else datetime.datetime.strptime(start, "%H:%M").minute][0]%int(c) != 0
-                              or datetime.datetime.strptime(start, "%H:%M") <= datetime.datetime.strptime(end, "%H:%M")):
+                        while([60 if datetime.datetime.strptime(start, "%H:%M").minute == 0 else datetime.datetime.strptime(start, "%H:%M").minute][0]%int(c) != 0):
+                            if datetime.datetime.strptime(start, "%H:%M") > datetime.datetime.strptime(end, "%H:%M"):
+                                break
                             start1 = datetime.datetime.strptime(start, "%H:%M") + datetime.timedelta(minutes=10)
                             start = start1.strftime("%H:%M")
                     tempList = pd.date_range(start, end, freq=(str(c) + 'min')).time.tolist()
@@ -124,19 +117,19 @@ class AggregateTickData(object):
             gLogger.exception("Exception : %s" %e)
             return False
 
-    def genKData(self, vtSymbol, df_data, lock):
+    def genKData(self, vtSymbol, df_data):
         try:
             if not df_data.empty:
                 cycle = self.cycle[1:]
-                self.gen1minKData(vtSymbol, df_data, lock)
-                self.genOtherKData(vtSymbol, cycle, lock)
-                self.gen1DayKData(vtSymbol, lock)
+                self.gen1minKData(vtSymbol, df_data)
+                self.genOtherKData(vtSymbol, cycle)
+                self.gen1DayKData(vtSymbol)
             else:
                 gLogger.exception("df data is empty!")
         except Exception as e:
             return False
 
-    def gen1minKData(self, vtSymbol, df_data, lock):
+    def gen1minKData(self, vtSymbol, df_data):
         symbol = "".join([a for a in vtSymbol if a.isalpha()]).lower()
         try:
             gLogger.info("start gen1minKData , vtSymbol is %s" %vtSymbol)
@@ -154,15 +147,13 @@ class AggregateTickData(object):
                 dfTemp = df_data.loc[p1 & p2]
                 if len(dfTemp) > 1:
                     self.barDict[vtSymbol][c].append(self.aggMethod(dfTemp, c))
-            lock.acquire()
             dbNew = self.db.get_db("localhost", 27017, 'WIND_1_MIN_DB')
             self.db.insert2db(dbNew, vtSymbol, self.barDict[vtSymbol][c])
-            lock.release()
         except Exception as e:
             gLogger.exception("Exception : %s" %e)
             return False
 
-    def genOtherKData(self, vtSymbol, cycle, lock):
+    def genOtherKData(self, vtSymbol, cycle):
         symbol = "".join([a for a in vtSymbol if a.isalpha()]).lower()
         for c in cycle:
             try:
@@ -178,15 +169,13 @@ class AggregateTickData(object):
                     dfTemp = pd.DataFrame(items)
                     if len(dfTemp) > 1:
                         self.barDict[vtSymbol][c].append(self.aggMethod(dfTemp, c))
-                lock.acquire()
                 dbNew = self.db.get_db("localhost", 27017, 'WIND_' + str(c) + '_MIN_DB')
                 self.db.insert2db(dbNew, vtSymbol, self.barDict[vtSymbol][c])
-                lock.release()
             except Exception as e:
                 gLogger.exception("Exception : %s" %e)
                 return False
 
-    def gen1DayKData(self, vtSymbol, lock):
+    def gen1DayKData(self, vtSymbol):
         try:
             gLogger.info("start gen1DayKData , vtSymbol = %s" %vtSymbol)
             c = '1Day'
@@ -195,10 +184,8 @@ class AggregateTickData(object):
             dfTemp = pd.DataFrame(items)
             if not dfTemp.empty:
                 self.barDict[vtSymbol][c].append(self.aggMethod(dfTemp, c))
-                lock.acquire()
                 dbNew = self.db.get_db("localhost", 27017, 'WIND_' + str(c) + '_MIN_DB')
                 self.db.insert2db(dbNew, vtSymbol, self.barDict[vtSymbol][c])
-                lock.release()
         except Exception as e:
             gLogger.exception("Exception : %s" %e)
             return False

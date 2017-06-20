@@ -10,11 +10,11 @@ from module_mylog import gLogger
 
 class CleanData(object):
 
-    def __init__(self, dfData, dfInfo, aucTime):
+    def __init__(self, dfData, dfInfo, aucTime, lock):
         self.df = dfData
         self.date = datetime.datetime.strptime(self.df["date"][0], "%Y%m%d")
         self.dfInfo = dfInfo
-        self.db = dbHandle()
+        self.db = dbHandle(lock)
         self.AucTime = aucTime
         self.initCleanRegulation()
 
@@ -43,6 +43,7 @@ class CleanData(object):
 
                 self.delItemsFromRemove()
                 self.db.insert2db(dbNew,i, self.df)
+            gLogger.info("finish clean data with %s" %i)
         except Exception as e:
             gLogger.exception("Exception: %s" %e)
 

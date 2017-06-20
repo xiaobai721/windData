@@ -6,14 +6,16 @@
 
 import scipy.io as sio
 import pandas as pd
-import datetime, re, logging
+import datetime
 from module_mylog import gLogger
 
 class LoadMatFile(object):
 
-    def __init__(self, matFile):
+    def __init__(self, matFile, lock):
         self.matFile = matFile
+        lock.acquire()
         self.data = sio.loadmat(self.matFile)
+        lock.release()
         gLogger.info("load mat file completed")
         self.dfData = self.convert2df()
 

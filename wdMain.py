@@ -1,11 +1,10 @@
 '''
 主函数
 '''
-import os, datetime
+import os, datetime, time, multiprocessing
 import pandas as pd
 from loadmat import LoadMatFile
 from CleanData import CleanData
-# from aggressiveTick import AggregateTickData
 from agg import AggregateTickData
 from module_mylog import gLogger
 
@@ -18,6 +17,11 @@ class Main(object):
 
     def processTickData(self):
         self.fileList = self.parseMatFile()
+        p = multiprocessing.Pool(5)
+        manager = multiprocessing.Manager()
+        work_queue = manager.Queue()
+        done_queue = manager.Queue()
+        lock = manager.Lock()
         for i in self.fileList:
             sym = i.split('\\')[-2]
             if "SP-" in sym or "SPC-" in sym or "IMCI" in sym :
@@ -26,11 +30,39 @@ class Main(object):
             self.date = datetime.datetime.strptime(i.split('\\')[-1].split('_')[-1][:-4], '%Y%m%d')
             self.dateList.append(self.date)
             dfInfo = self.loadInformation()
-            dfData = LoadMatFile(i).dfData
-            CleanData(dfData, dfInfo, self.AucTime)
+            v = (i, sym, dfInfo)
+            work_queue.put(v)
+            while (work_queue.full()):
+                gLogger.critical("work queue is fill, waiting......")
+                time.sleep(1)
+            if not work_queue.empty():
+                p.apply_async(self.oninit, args=(work_queue, done_queue, lock,))
+                work_queue.put('STOP')
+
+        p.close()
+        p.join()
+        done_queue.put('STOP')
+        for status in iter(done_queue.get_nowait, 'STOP'):
+            gLogger.warning(status)
+
+    def oninit(self, work_queue, done_queue, lock):
+        for v in iter(work_queue.get_nowait, 'STOP'):
+            try:
+                i = v[0]
+                vtSymbol = v[1]
+                dfInfo = v[2]
+                gLogger.info('Run task %s (%s)...' % (vtSymbol, os.getpid()))
+                dfData = LoadMatFile(i, lock).dfData
+                CleanData(dfData, dfInfo, self.AucTime, lock)
+                done_queue.put("%s process has done!" %vtSymbol)
+                time.sleep(1)
+            except Exception as e:
+                done_queue.put("failed on  process with %s!" %e)
+        return True
+
 
     def parse2CycleData(self):
-        self.dateList = [datetime.datetime(2017, 5, 31, 0, 0),datetime.datetime(2017, 6, 1, 0, 0),datetime.datetime(2017, 6, 2, 0, 0)]
+        # self.dateList = [datetime.datetime(2017, 5, 31, 0, 0),datetime.datetime(2017, 6, 1, 0, 0),datetime.datetime(2017, 6, 2, 0, 0)]
         for i in list(set(self.dateList)):
             gLogger.info("start parse cycle data —— %s" % i)
             self.date = i
@@ -68,5 +100,5 @@ class Main(object):
 
 if __name__ == '__main__':
     ee = Main()
-    # ee.processTickData()
-    ee.parse2CycleData()
+    ee.processTickData()
+    # ee.parse2CycleData()
