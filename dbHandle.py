@@ -17,6 +17,9 @@ class dbHandle(object):
         client = MongoClient(host ,port)
         db = client[dbName]
         return db
+    def disconnect_db(self, db):
+        #断开连接
+        db.close()
 
     def get_all_colls(self, db):
         return [i for i in db.collection_names()]
@@ -35,6 +38,7 @@ class dbHandle(object):
         if isinstance(df, pd.DataFrame):
             if df.empty:
                 gLogger.error("data trying to insert is empty!")
+                return
             data = json.loads(df.T.to_json(date_format = 'iso')).values()
             for i in data:
                 if isinstance(i["datetime"], str):
@@ -43,6 +47,7 @@ class dbHandle(object):
         elif isinstance(df, list):
             if len(df) == 0:
                 gLogger.error("data trying to insert is empty!")
+                return
             dbNew[coll_name].insert_many(df)
         else:
             gLogger.error("data type trying to insert is not defined, please check!")

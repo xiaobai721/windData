@@ -1,11 +1,12 @@
 '''
 主函数
 '''
-import os, datetime, multiprocessing
+import os, datetime
 import pandas as pd
 from loadmat import LoadMatFile
 from CleanData import CleanData
-from aggressiveTick import AggregateTickData
+# from aggressiveTick import AggregateTickData
+from agg import AggregateTickData
 from module_mylog import gLogger
 
 class Main(object):
@@ -29,19 +30,12 @@ class Main(object):
             CleanData(dfData, dfInfo, self.AucTime)
 
     def parse2CycleData(self):
-        pool = multiprocessing.Pool(processes=4)
-        result = []
         self.dateList = [datetime.datetime(2017, 5, 31, 0, 0),datetime.datetime(2017, 6, 1, 0, 0),datetime.datetime(2017, 6, 2, 0, 0)]
         for i in list(set(self.dateList)):
             gLogger.info("start parse cycle data —— %s" % i)
             self.date = i
             dfInfo = self.loadInformation()
-            # AggregateTickData(dfInfo, i, self.AucTime)
-            result.append(pool.apply_async(func=AggregateTickData, args=(dfInfo, i, self.AucTime)))
-        pool.close()
-        pool.join()
-        for j in result:
-            print(j.get())
+            AggregateTickData(dfInfo, i, self.AucTime)
 
     def parseMatFile(self):
         fileList = []
