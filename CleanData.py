@@ -30,7 +30,9 @@ class CleanData(object):
         try:
             if "IFC" in j or "IHC" in j or "ICC" in j or "TFC" in j:
                 i = j[:2]
-            self.Symbol = "".join([a for a in i if a.isalpha()]).lower()
+                self.Symbol = "".join([a for a in i if a.isalpha()]).lower()
+            else:
+                self.Symbol = "".join([a for a in j if a.isalpha()]).lower()
             self.initList()
             if not self.df.empty:
                 self.cleanIllegalTradingTime()

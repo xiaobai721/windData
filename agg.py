@@ -146,7 +146,7 @@ class AggregateTickData(object):
                 p2 = df_data["structTime"] < end
                 dfTemp = df_data.loc[p1 & p2]
                 if len(dfTemp) > 1:
-                    self.barDict[vtSymbol][c].append(self.aggMethod(dfTemp, c))
+                    self.barDict[vtSymbol][c].append(self.aggMethod(dfTemp, c, str(i[0]).strip()))
             dbNew = self.db.get_db("localhost", 27017, 'WIND_1_MIN_DB')
             self.db.insert2db(dbNew, vtSymbol, self.barDict[vtSymbol][c])
         except Exception as e:
@@ -168,7 +168,7 @@ class AggregateTickData(object):
                     items = list(filter(lambda x:x is not None, items))
                     dfTemp = pd.DataFrame(items)
                     if len(dfTemp) > 1:
-                        self.barDict[vtSymbol][c].append(self.aggMethod(dfTemp, c))
+                        self.barDict[vtSymbol][c].append(self.aggMethod(dfTemp, c, str(i[0]).strip()))
                 dbNew = self.db.get_db("localhost", 27017, 'WIND_' + str(c) + '_MIN_DB')
                 self.db.insert2db(dbNew, vtSymbol, self.barDict[vtSymbol][c])
             except Exception as e:
@@ -183,7 +183,7 @@ class AggregateTickData(object):
             items = self.barDict[vtSymbol][1]
             dfTemp = pd.DataFrame(items)
             if not dfTemp.empty:
-                self.barDict[vtSymbol][c].append(self.aggMethod(dfTemp, c))
+                self.barDict[vtSymbol][c].append(self.aggMethod(dfTemp, c, "00:00"))
                 dbNew = self.db.get_db("localhost", 27017, 'WIND_' + str(c) + '_MIN_DB')
                 self.db.insert2db(dbNew, vtSymbol, self.barDict[vtSymbol][c])
         except Exception as e:
@@ -199,9 +199,10 @@ class AggregateTickData(object):
             return func3
         return func2
 
-    def aggMethod(self, dfTemp, cflag):
+    def aggMethod(self, dfTemp, cflag, startTime):
         try:
             tempBar = {}
+            st = dfTemp.iloc[0]["date"] + ' ' + startTime
             if cflag == 1:
                 tempBar["vtSymbol"] = dfTemp.iloc[0]["vtSymbol"]
                 tempBar["symbol"] = dfTemp.iloc[0]["symbol"]
@@ -214,7 +215,7 @@ class AggregateTickData(object):
                 tempBar["low"] = float(min(dfTemp["lastPrice"]))
                 tempBar["open"] = float(dfTemp.iloc[0]["lastPrice"])
                 tempBar["close"] = float(dfTemp.iloc[-1]["lastPrice"])
-                tempBar["datetime"] = dfTemp.iloc[0]["datetime"]
+                tempBar["datetime"] = datetime.datetime.strptime(st, "%Y%m%d %H:%M:%S%f")
                 return tempBar
             else:
                 tempBar["vtSymbol"] = dfTemp.iloc[0]["vtSymbol"]
@@ -228,7 +229,7 @@ class AggregateTickData(object):
                 tempBar["low"] = float(min(dfTemp["low"]))
                 tempBar["open"] = float(dfTemp.iloc[0]["open"])
                 tempBar["close"] = float(dfTemp.iloc[-1]["close"])
-                tempBar["datetime"] = dfTemp.iloc[0]["datetime"]
+                tempBar["datetime"] = datetime.datetime.strptime(st, "%Y%m%d %H:%M:%S%f")
                 return tempBar
         except Exception as e:
             gLogger.exception("Exception when exec aggMethod e:%s" %e)

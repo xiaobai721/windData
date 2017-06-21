@@ -11,18 +11,17 @@ from module_mylog import gLogger
 class Main(object):
 
     def __init__(self):
-        self.root = 'E:\\windDataOriginal'
+        self.root = 'E:\\wind'
         self.dateList = []
         self.AucTime = ['08:59', '20:59', '09:29', '09:14']
 
     def processTickData(self):
         self.fileList = self.parseMatFile()
-        p = multiprocessing.Pool(1)
+        p = multiprocessing.Pool(5)
         manager = multiprocessing.Manager()
         work_queue = manager.Queue()
         done_queue = manager.Queue()
         lock = manager.Lock()
-        self.fileList = ["E:\\windDataOriginal\\finance\\20170601\IFC1\\IFC1_20170601.mat"]
         for i in self.fileList:
             sym = i.split('\\')[-2]
             if "SP-" in sym or "SPC-" in sym or "IMCI" in sym :
@@ -63,7 +62,7 @@ class Main(object):
 
 
     def parse2CycleData(self):
-        # self.dateList = [datetime.datetime(2017, 5, 31, 0, 0),datetime.datetime(2017, 6, 1, 0, 0),datetime.datetime(2017, 6, 2, 0, 0)]
+        self.dateList = [datetime.datetime(2010, 6, 30, 0, 0),datetime.datetime(2010, 7, 1, 0, 0),datetime.datetime(2010, 7, 2, 0, 0)]
         for i in list(set(self.dateList)):
             gLogger.info("start parse cycle data —— %s" % i)
             self.date = i
@@ -101,5 +100,5 @@ class Main(object):
 
 if __name__ == '__main__':
     ee = Main()
-    ee.processTickData()
-    # ee.parse2CycleData()
+    # ee.processTickData()
+    ee.parse2CycleData()
