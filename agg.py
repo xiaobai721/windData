@@ -21,7 +21,7 @@ class AggregateTickData(object):
         self.initStart()
 
     def initStart(self):
-        p = multiprocessing.Pool(5)
+        p = multiprocessing.Pool(1)
         manager = multiprocessing.Manager()
         work_queue = manager.Queue()
         done_queue = manager.Queue()
@@ -229,7 +229,10 @@ class AggregateTickData(object):
                 tempBar["low"] = float(min(dfTemp["low"]))
                 tempBar["open"] = float(dfTemp.iloc[0]["open"])
                 tempBar["close"] = float(dfTemp.iloc[-1]["close"])
-                tempBar["datetime"] = datetime.datetime.strptime(st, "%Y%m%d %H:%M:%S%f")
+                if cflag == '1Day':
+                    tempBar["datetime"] = datetime.datetime.strptime(tempBar["date"], "%Y%m%d")
+                else:
+                    tempBar["datetime"] = datetime.datetime.strptime(st, "%Y%m%d %H:%M:%S%f")
                 return tempBar
         except Exception as e:
             gLogger.exception("Exception when exec aggMethod e:%s" %e)
