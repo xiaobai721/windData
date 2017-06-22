@@ -21,7 +21,7 @@ class AggregateTickData(object):
         self.initStart()
 
     def initStart(self):
-        p = multiprocessing.Pool(1)
+        p = multiprocessing.Pool(5)
         manager = multiprocessing.Manager()
         work_queue = manager.Queue()
         done_queue = manager.Queue()
@@ -30,7 +30,6 @@ class AggregateTickData(object):
         self.db = dbHandle(lock)
         db = self.db.get_db("localhost", 27017, 'WIND_TICK_DB')
         names = self.db.get_all_colls(db)
-
         for i in names:
             Symbol = "".join([a for a in i if a.isalpha()]).lower()
             df = pd.DataFrame.from_records(list(self.db.get_specificDayItems(db, i, self.timePoint)))
@@ -81,7 +80,7 @@ class AggregateTickData(object):
 
     def saveTimeList(self, symbol, lock):
         lock.acquire()
-        with open(self.timeFilePath + 'timeSeries_' + symbol + '.pickle', 'wb') as handle:
+        with open(self.timeFilePath + 'timeSeries_' + symbol + '.pkl', 'wb') as handle:
             pickle.dump(self.splitDict[symbol], handle, protocol=pickle.HIGHEST_PROTOCOL)
         lock.release()
 
@@ -110,6 +109,8 @@ class AggregateTickData(object):
                             start = start1.strftime("%H:%M")
                     tempList = pd.date_range(start, end, freq=(str(c) + 'min')).time.tolist()
                     tempDict[c].extend(tempList)
+
+                tempDict[c].extend(pd.date_range(end, end, freq='1min').time.tolist())
                 lst = list(set(tempDict[c]))
                 lst.sort()
                 self.splitDict[symbol][c] = lst

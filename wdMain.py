@@ -22,13 +22,13 @@ class Main(object):
         # work_queue = manager.Queue()
         # done_queue = manager.Queue()
         # lock = manager.Lock()
-        # for i in self.fileList:
+        for i in self.fileList:
         #     sym = i.split('\\')[-2]
         #     if "SP-" in sym or "SPC-" in sym or "IMCI" in sym :
         #         continue
         #     gLogger.info("start process tick data —— %s" %i)
-        #     self.date = datetime.datetime.strptime(i.split('\\')[-1].split('_')[-1][:-4], '%Y%m%d')
-        #     self.dateList.append(self.date)
+            self.date = datetime.datetime.strptime(i.split('\\')[-1].split('_')[-1][:-4], '%Y%m%d')
+            self.dateList.append(self.date)
         #     dfInfo = self.loadInformation()
         #     v = (i, sym, dfInfo)
         #     work_queue.put(v)
@@ -62,7 +62,6 @@ class Main(object):
 
 
     def parse2CycleData(self):
-        self.dateList = [datetime.datetime(2010, 6, 30, 0, 0),datetime.datetime(2010, 7, 1, 0, 0),datetime.datetime(2010, 7, 2, 0, 0)]
         for i in list(set(self.dateList)):
             gLogger.info("start parse cycle data —— %s" % i)
             self.date = i

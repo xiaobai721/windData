@@ -3,7 +3,7 @@ import logging, logging.config, logging.handlers
 
 def mylog():
     gLogger = logging.getLogger()
-    MAXLOGSIZE = 10 * 1024 * 1024
+    MAXLOGSIZE = 5 * 1024 * 1024
     logfile = "LogFile/" + time.strftime('%Y-%m-%d',time.localtime(time.time())) + ".log"
     formatter = logging.Formatter('[%(asctime)s][%(levelname)s] %(message)s')
     handler = logging.StreamHandler(sys.stdout)
