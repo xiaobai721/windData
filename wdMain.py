@@ -17,33 +17,33 @@ class Main(object):
 
     def processTickData(self):
         self.fileList = self.parseMatFile()
-        # p = multiprocessing.Pool(5)
-        # manager = multiprocessing.Manager()
-        # work_queue = manager.Queue()
-        # done_queue = manager.Queue()
-        # lock = manager.Lock()
+        p = multiprocessing.Pool(5)
+        manager = multiprocessing.Manager()
+        work_queue = manager.Queue()
+        done_queue = manager.Queue()
+        lock = manager.Lock()
         for i in self.fileList:
-        #     sym = i.split('\\')[-2]
-        #     if "SP-" in sym or "SPC-" in sym or "IMCI" in sym :
-        #         continue
-        #     gLogger.info("start process tick data —— %s" %i)
+            sym = i.split('\\')[-2]
+            if "SP-" in sym or "SPC-" in sym or "IMCI" in sym or "RO" in sym or "WS" in sym or "ER" in sym or "WT" in sym or "efp" in sym or "ME" in sym or "TC" in sym:
+                continue
+            gLogger.info("start process tick data —— %s" %i)
             self.date = datetime.datetime.strptime(i.split('\\')[-1].split('_')[-1][:-4], '%Y%m%d')
             self.dateList.append(self.date)
-        #     dfInfo = self.loadInformation()
-        #     v = (i, sym, dfInfo)
-        #     work_queue.put(v)
-        #     while (work_queue.full()):
-        #         gLogger.critical("work queue is fill, waiting......")
-        #         time.sleep(1)
-        #     if not work_queue.empty():
-        #         p.apply_async(self.oninit, args=(work_queue, done_queue, lock,))
-        #         work_queue.put('STOP')
-        #
-        # p.close()
-        # p.join()
-        # done_queue.put('STOP')
-        # for status in iter(done_queue.get_nowait, 'STOP'):
-        #     gLogger.warning(status)
+            dfInfo = self.loadInformation()
+            v = (i, sym, dfInfo)
+            work_queue.put(v)
+            while (work_queue.full()):
+                gLogger.critical("work queue is fill, waiting......")
+                time.sleep(1)
+            if not work_queue.empty():
+                p.apply_async(self.oninit, args=(work_queue, done_queue, lock,))
+                work_queue.put('STOP')
+
+        p.close()
+        p.join()
+        done_queue.put('STOP')
+        for status in iter(done_queue.get_nowait, 'STOP'):
+            gLogger.warning(status)
 
     def oninit(self, work_queue, done_queue, lock):
         for v in iter(work_queue.get_nowait, 'STOP'):
