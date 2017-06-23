@@ -7,6 +7,7 @@ import pandas as pd
 import time, datetime
 from dbHandle import dbHandle
 from module_mylog import gLogger
+from parseConfig import getConfig
 
 class CleanData(object):
 
@@ -25,7 +26,7 @@ class CleanData(object):
 
     def initCleanRegulation(self):
         gLogger.info("start initCleanRegulation")
-        dbNew = self.db.get_db("localhost", 27017, 'WIND_TICK_DB')
+        dbNew = self.db.get_db(getConfig("database", "dbhost"), int(getConfig("database", "dbport")), getConfig("database", "db_tick"))
         j = self.df["vtSymbol"][0]
         try:
             if "IFC" in j or "IHC" in j or "ICC" in j or "TFC" in j:

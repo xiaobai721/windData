@@ -7,13 +7,16 @@ import pickle
 import os, multiprocessing
 from dbHandle import dbHandle
 from module_mylog import gLogger
-import mul_process_package
+from parseConfig import getConfig
+# import mul_process_package
 
 class AggregateTickData(object):
 
     def __init__(self, dfInfo, date, aucTime):
-        multiprocessing.freeze_support()
+        # multiprocessing.freeze_support()
         self.timeFilePath = os.getcwd() + '/' + 'timeSeriesFile/'
+        if not os.path.exists(self.timeFilePath):
+            os.makedirs(self.timeFilePath)
         self.barDict = {}
         self.splitDict = {}
         self.dfInfo = dfInfo
@@ -23,14 +26,14 @@ class AggregateTickData(object):
         self.initStart()
 
     def initStart(self):
-        p = multiprocessing.Pool(5)
+        p = multiprocessing.Pool(int(getConfig("numOfProcesses", "numP")))
         manager = multiprocessing.Manager()
         work_queue = manager.Queue()
         done_queue = manager.Queue()
         lock = manager.Lock()
 
         self.db = dbHandle(lock)
-        db = self.db.get_db("localhost", 27017, 'WIND_TICK_DB')
+        db = self.db.get_db(getConfig("database", "dbhost"), int(getConfig("database", "dbport")), getConfig("database", "db_tick"))
         names = self.db.get_all_colls(db)
         for i in names:
             if "IFC" in i or "IHC" in i or "ICC" in i or "TFC" in i:
@@ -154,7 +157,7 @@ class AggregateTickData(object):
                 dfTemp = df_data.loc[p1 & p2]
                 if len(dfTemp) > 1:
                     self.barDict[vtSymbol][c].append(self.aggMethod(dfTemp, c, str(i[0]).strip()))
-            dbNew = self.db.get_db("localhost", 27017, 'WIND_1_MIN_DB')
+            dbNew = self.db.get_db(getConfig("database", "dbhost"), int(getConfig("database", "dbport")), getConfig("database", "db_1min"))
             self.db.insert2db(dbNew, vtSymbol, self.barDict[vtSymbol][c])
         except Exception as e:
             gLogger.exception("Exception : %s" %e)
@@ -176,7 +179,8 @@ class AggregateTickData(object):
                     dfTemp = pd.DataFrame(items)
                     if len(dfTemp) > 1:
                         self.barDict[vtSymbol][c].append(self.aggMethod(dfTemp, c, str(i[0]).strip()))
-                dbNew = self.db.get_db("localhost", 27017, 'WIND_' + str(c) + '_MIN_DB')
+                collName = "db_" + str(c) + "min"
+                dbNew = self.db.get_db(getConfig("database", "dbhost"), int(getConfig("database", "dbport")), getConfig("database", collName))
                 self.db.insert2db(dbNew, vtSymbol, self.barDict[vtSymbol][c])
             except Exception as e:
                 gLogger.exception("Exception : %s" %e)
@@ -191,7 +195,7 @@ class AggregateTickData(object):
             dfTemp = pd.DataFrame(items)
             if not dfTemp.empty:
                 self.barDict[vtSymbol][c].append(self.aggMethod(dfTemp, c, "00:00"))
-                dbNew = self.db.get_db("localhost", 27017, 'WIND_' + str(c) + '_MIN_DB')
+                dbNew = self.db.get_db(getConfig("database", "dbhost"), int(getConfig("database", "dbport")), getConfig("database", "db_1d"))
                 self.db.insert2db(dbNew, vtSymbol, self.barDict[vtSymbol][c])
         except Exception as e:
             gLogger.exception("Exception : %s" %e)

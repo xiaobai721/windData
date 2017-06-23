@@ -1,4 +1,4 @@
-import sys,time
+import sys,time,os
 import logging, logging.config, logging.handlers
 
 def mylog():
@@ -15,4 +15,8 @@ def mylog():
     gLogger.addHandler(handler)
     gLogger.setLevel(logging.INFO)
     return gLogger
+
+
+if not os.path.exists(os.getcwd() + '/' + 'LogFile/'):
+    os.makedirs(os.getcwd() + '/' + 'LogFile/')
 gLogger = mylog()
