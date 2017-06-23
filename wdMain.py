@@ -11,7 +11,7 @@ from module_mylog import gLogger
 class Main(object):
 
     def __init__(self):
-        self.root = 'E:\\wind'
+        self.root = 'E:\\windDataOriginal'
         self.dateList = []
         self.AucTime = ['08:59', '20:59', '09:29', '09:14']
 

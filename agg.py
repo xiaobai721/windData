@@ -31,7 +31,11 @@ class AggregateTickData(object):
         db = self.db.get_db("localhost", 27017, 'WIND_TICK_DB')
         names = self.db.get_all_colls(db)
         for i in names:
-            Symbol = "".join([a for a in i if a.isalpha()]).lower()
+            if "IFC" in i or "IHC" in i or "ICC" in i or "TFC" in i:
+                i = i[:2]
+                Symbol = "".join([a for a in i if a.isalpha()]).lower()
+            else:
+                Symbol = "".join([a for a in i if a.isalpha()]).lower()
             df = pd.DataFrame.from_records(list(self.db.get_specificDayItems(db, i, self.timePoint)))
             if df.empty:
                 continue
