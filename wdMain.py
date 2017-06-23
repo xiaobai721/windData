@@ -7,6 +7,7 @@ from loadmat import LoadMatFile
 from CleanData import CleanData
 from agg import AggregateTickData
 from module_mylog import gLogger
+import mul_process_package
 
 class Main(object):
 
@@ -98,6 +99,7 @@ class Main(object):
             return target.split('||')[1]
 
 if __name__ == '__main__':
+    multiprocessing.freeze_support()
     ee = Main()
     ee.processTickData()
     ee.parse2CycleData()

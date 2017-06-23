@@ -7,10 +7,12 @@ import pickle
 import os, multiprocessing
 from dbHandle import dbHandle
 from module_mylog import gLogger
+import mul_process_package
 
 class AggregateTickData(object):
 
     def __init__(self, dfInfo, date, aucTime):
+        multiprocessing.freeze_support()
         self.timeFilePath = os.getcwd() + '/' + 'timeSeriesFile/'
         self.barDict = {}
         self.splitDict = {}
