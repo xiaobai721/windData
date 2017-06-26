@@ -28,24 +28,24 @@ class Main(object):
         lock = manager.Lock()
         for i in self.fileList:
             sym = i.split('\\')[-2]
-            # if "SP-" in sym or "SPC-" in sym or "IMCI" in sym or "RO" in sym or "WS" in sym or "ER" in sym or "WT" in sym or "efp" in sym or "ME" in sym or "TC" in sym:
-            #     continue
+            fg = True
             for s in filterList:
-                if s in sym or s in "".join([a for a in sym if a.isalpha()]).lower():
+                if s.strip() in sym:
+                    fg = False
                     break
-                else:
-                    gLogger.info("start process tick data —— %s" %i)
-                    self.date = datetime.datetime.strptime(i.split('\\')[-1].split('_')[-1][:-4], '%Y%m%d')
-                    self.dateList.append(self.date)
-                    dfInfo = self.loadInformation()
-                    v = (i, sym, dfInfo)
-                    work_queue.put(v)
-                    while (work_queue.full()):
-                        gLogger.critical("work queue is fill, waiting......")
-                        time.sleep(1)
-                    if not work_queue.empty():
-                        p.apply_async(self.oninit, args=(work_queue, done_queue, lock,))
-                        work_queue.put('STOP')
+            if fg:
+                gLogger.info("start process tick data —— %s" %i)
+                self.date = datetime.datetime.strptime(i.split('\\')[-1].split('_')[-1][:-4], '%Y%m%d')
+                self.dateList.append(self.date)
+                dfInfo = self.loadInformation()
+                v = (i, sym, dfInfo)
+                work_queue.put(v)
+                while (work_queue.full()):
+                    gLogger.critical("work queue is fill, waiting......")
+                    time.sleep(1)
+                if not work_queue.empty():
+                    p.apply_async(self.oninit, args=(work_queue, done_queue, lock,))
+                    work_queue.put('STOP')
 
         p.close()
         p.join()
