@@ -31,7 +31,7 @@ class Main(object):
             # if "SP-" in sym or "SPC-" in sym or "IMCI" in sym or "RO" in sym or "WS" in sym or "ER" in sym or "WT" in sym or "efp" in sym or "ME" in sym or "TC" in sym:
             #     continue
             for s in filterList:
-                if s in sym:
+                if s in sym or s in "".join([a for a in sym if a.isalpha()]).lower():
                     break
                 else:
                     gLogger.info("start process tick data —— %s" %i)
