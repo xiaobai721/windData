@@ -81,11 +81,11 @@ class AggregateTickData(object):
             gLogger.info("start getTimeList")
             if not os.path.exists(self.timeFilePath):
                 os.makedirs(self.timeFilePath)
-            if Symbol in self.splitDict:
-                pass
-            else:
-                self.genTimeList(Symbol, cycle)
-                self.saveTimeList(Symbol, lock)
+            # if Symbol in self.splitDict:
+            #     return
+            # else:
+            self.genTimeList(Symbol, cycle)
+            self.saveTimeList(Symbol, lock)
         except Exception as e:
             gLogger.exception("Exception : %s" %e)
             return False

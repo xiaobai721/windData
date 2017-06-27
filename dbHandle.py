@@ -25,17 +25,17 @@ class dbHandle(object):
         return [i for i in db.collection_names()]
 
     def get_specificItems(self, db, coll_name, time):
-        self.lock.acquire()
+        # self.lock.acquire()
         Items = db[coll_name].find({"datetime": {'$gte': time}})
-        self.lock.release()
+        # self.lock.release()
         return Items
 
     def get_specificDayItems(self, db, coll_name, t):
-        self.lock.acquire()
+        # self.lock.acquire()
         if isinstance(t, datetime.datetime):
             t = t.strftime("%Y%m%d")
         Items = db[coll_name].find({"date": t})
-        self.lock.release()
+        # self.lock.release()
         return Items
 
     def insert2db(self ,dbNew ,coll_name, df):
@@ -54,7 +54,7 @@ class dbHandle(object):
         elif isinstance(df, list):
             if len(df) == 0:
                 gLogger.error("data trying to insert is empty!")
-                self.lock.release()
+                # self.lock.release()
                 return
             dbNew[coll_name].insert_many(df)
             # self.lock.release()
