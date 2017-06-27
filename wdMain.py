@@ -20,7 +20,6 @@ class Main(object):
 
     def processTickData(self):
         self.fileList = self.parseMatFile()
-        filterList = getConfig("filter", "s").split(",")
         p = multiprocessing.Pool(int(getConfig("numOfProcesses", "numP")))
         manager = multiprocessing.Manager()
         work_queue = manager.Queue()
@@ -28,24 +27,17 @@ class Main(object):
         lock = manager.Lock()
         for i in self.fileList:
             sym = i.split('\\')[-2]
-            fg = True
-            for s in filterList:
-                if s.strip() in sym:
-                    fg = False
-                    break
-            if fg:
-                gLogger.info("start process tick data —— %s" %i)
-                self.date = datetime.datetime.strptime(i.split('\\')[-1].split('_')[-1][:-4], '%Y%m%d')
-                self.dateList.append(self.date)
-                dfInfo = self.loadInformation()
-                v = (i, sym, dfInfo)
-                work_queue.put(v)
-                while (work_queue.full()):
-                    gLogger.critical("work queue is fill, waiting......")
-                    time.sleep(1)
-                if not work_queue.empty():
-                    p.apply_async(self.oninit, args=(work_queue, done_queue, lock,))
-                    work_queue.put('STOP')
+            j = "".join([a for a in sym if a.isalpha()]).lower()
+            self.date = datetime.datetime.strptime(i.split('\\')[-1].split('_')[-1][:-4], '%Y%m%d')
+            self.dateList.append(self.date)
+            dfInfo = self.loadInformation()
+            if j not in dfInfo.index and j not in ["ifc","ihc","icc","tfc"]:
+                continue
+            v = (i, sym, dfInfo)
+            work_queue.put(v)
+            if not work_queue.empty():
+                p.apply_async(self.oninit, args=(work_queue, done_queue, lock,))
+                work_queue.put('STOP')
 
         p.close()
         p.join()
