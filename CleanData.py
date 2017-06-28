@@ -69,15 +69,17 @@ class CleanData(object):
             gLogger.info("start reserveLastTickInAuc")
             self.df["structTime"] = self.df["time"].map(lambda x: datetime.datetime.strptime(x, "%H%M%S%f"))
             for st in self.AucTime:
-                start = datetime.datetime.strptime(st, '%H:%M')
-                end =  start + datetime.timedelta(minutes=1)
-                p1 = self.df["structTime"] >= start
-                p2 = self.df["structTime"] < end
-                dfTemp = self.df.loc[p1 & p2]
-                dfTemp = dfTemp.sort_values(by = ["structTime"], ascending=False)
-                for i in dfTemp.index.values[1:]:
-                    self.removeList.append(i)
-                    gLogger.debug('remove index = %d' % i)
+                tp = self.dfInfo.loc[self.Symbol]["CurrPeriod"]
+                if st in [t for i in tp.split(',') for t in i.split('-')]:
+                    start = datetime.datetime.strptime(st, '%H:%M')
+                    end =  start + datetime.timedelta(minutes=1)
+                    p1 = self.df["structTime"] >= start
+                    p2 = self.df["structTime"] < end
+                    dfTemp = self.df.loc[p1 & p2]
+                    dfTemp = dfTemp.sort_values(by = ["structTime"], ascending=False)
+                    for i in dfTemp.index.values[1:]:
+                        self.removeList.append(i)
+                        gLogger.debug('remove index = %d' % i)
             del self.df["structTime"]
         except Exception as e:
             gLogger.exception("Exception : %s" %e)

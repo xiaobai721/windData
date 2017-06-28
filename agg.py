@@ -115,6 +115,8 @@ class AggregateTickData(object):
                                 break
                             start1 = datetime.datetime.strptime(start, "%H:%M") + datetime.timedelta(minutes=10)
                             start = start1.strftime("%H:%M")
+                    if '00:00' in end:
+                        end = '23:59'
                     tempList = pd.date_range(start, end, freq=(str(c) + 'min')).time.tolist()
                     tempDict[c].extend(tempList)
 
@@ -146,10 +148,12 @@ class AggregateTickData(object):
             self.barDict[vtSymbol] = {}
             self.barDict[vtSymbol][c] = []
             df_data["structTime"] = df_data["time"].map(lambda x:datetime.datetime.strptime(x, "%H%M%S%f"))
+            tp = self.dfInfo.loc[symbol]["CurrPeriod"]
+            tList = [t for i in tp.split(',') for t in i.split('-')]
             for i in zip(*[iter(self.splitDict[symbol][c][i:]) for i in range(2)]):
                 start = datetime.datetime.strptime(str(i[0]).strip(), '%H:%M:%S')
                 end = datetime.datetime.strptime(str(i[1]).strip(), '%H:%M:%S')
-                if (start - datetime.timedelta(minutes=1)).strftime('%H:%M')in self.AucTime:
+                if (start - datetime.timedelta(minutes=1)).strftime('%H:%M') in self.AucTime and (start - datetime.timedelta(minutes=1)).strftime('%H:%M') in tList:
                     start = start - datetime.timedelta(minutes=1)
                 p1 = df_data["structTime"] >= start
                 p2 = df_data["structTime"] < end
@@ -227,6 +231,33 @@ class AggregateTickData(object):
                 tempBar["close"] = float(dfTemp.iloc[-1]["lastPrice"])
                 tempBar["datetime"] = datetime.datetime.strptime(st, "%Y%m%d %H:%M:%S%f")
                 return tempBar
+            elif cflag == '1Day':
+                s1 = datetime.datetime.strptime(st, "%Y%m%d %H:%M").replace(hour=20)
+                e1 = datetime.datetime.strptime(st, "%Y%m%d %H:%M").replace(hour=23)
+                s2 = datetime.datetime.strptime(st, "%Y%m%d %H:%M").replace(hour=14)
+                e2 = datetime.datetime.strptime(st, "%Y%m%d %H:%M").replace(hour=15)
+                gte1 = dfTemp["datetime"] >= s1
+                lte1 = dfTemp["datetime"] <= e1
+                gte2 = dfTemp["datetime"] >= s2
+                lte2 = dfTemp["datetime"] <= e2
+                tp1 = dfTemp.loc[gte1 & lte1]
+                tp2 = dfTemp.loc[gte2 & lte2]
+                tempBar["vtSymbol"] = dfTemp.iloc[0]["vtSymbol"]
+                tempBar["symbol"] = dfTemp.iloc[0]["symbol"]
+                tempBar["date"] = dfTemp.iloc[0]["date"]
+                tempBar["time"] = dfTemp.iloc[0]["time"]
+                tempBar["volume"] = float(dfTemp["volume"].sum())
+                tempBar["turnover"] = float(dfTemp["turnover"].sum())
+                tempBar["high"] = float(max(dfTemp["high"]))
+                tempBar["low"] = float(min(dfTemp["low"]))
+                if not tp1.empty:
+                    tempBar["open"] = float(tp1.iloc[0]["open"])
+                    tempBar["close"] = float(tp2.iloc[-1]["close"])
+                else:
+                    tempBar["open"] = float(dfTemp.iloc[0]["open"])
+                    tempBar["close"] = float(dfTemp.iloc[-1]["close"])
+                tempBar["datetime"] = datetime.datetime.strptime(tempBar["date"], "%Y%m%d")
+                return tempBar
             else:
                 tempBar["vtSymbol"] = dfTemp.iloc[0]["vtSymbol"]
                 tempBar["symbol"] = dfTemp.iloc[0]["symbol"]
@@ -239,10 +270,7 @@ class AggregateTickData(object):
                 tempBar["low"] = float(min(dfTemp["low"]))
                 tempBar["open"] = float(dfTemp.iloc[0]["open"])
                 tempBar["close"] = float(dfTemp.iloc[-1]["close"])
-                if cflag == '1Day':
-                    tempBar["datetime"] = datetime.datetime.strptime(tempBar["date"], "%Y%m%d")
-                else:
-                    tempBar["datetime"] = datetime.datetime.strptime(st, "%Y%m%d %H:%M:%S%f")
+                tempBar["datetime"] = datetime.datetime.strptime(st, "%Y%m%d %H:%M:%S%f")
                 return tempBar
         except Exception as e:
             gLogger.exception("Exception when exec aggMethod e:%s" %e)
