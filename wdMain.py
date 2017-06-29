@@ -29,10 +29,10 @@ class Main(object):
             sym = i.split('\\')[-2]
             j = "".join([a for a in sym if a.isalpha()]).lower()
             self.date = datetime.datetime.strptime(i.split('\\')[-1].split('_')[-1][:-4], '%Y%m%d')
-            self.dateList.append(self.date)
             dfInfo = self.loadInformation()
             if j not in dfInfo.index and j not in ["ifc","ihc","icc","tfc"]:
                 continue
+            self.dateList.append(self.date)
             v = (i, sym, dfInfo)
             work_queue.put(v)
             if not work_queue.empty():

@@ -58,7 +58,7 @@ class CleanData(object):
             self.df['illegalTime'] = self.df['illegalTime'].fillna(False)
             for i,row in self.df[self.df['illegalTime'] == False].iterrows():
                 self.removeList.append(i)
-                gLogger.debug('remove index = %d' %(i))
+                gLogger.info('remove index = %d' %(i))
             del self.df["illegalTime"]
         except Exception as e:
             gLogger.exception("Exception: %s" %e)
@@ -70,7 +70,7 @@ class CleanData(object):
             self.df["structTime"] = self.df["time"].map(lambda x: datetime.datetime.strptime(x, "%H%M%S%f"))
             for st in self.AucTime:
                 tp = self.dfInfo.loc[self.Symbol]["CurrPeriod"]
-                if st in [t for i in tp.split(',') for t in i.split('-')]:
+                if st in [t.strip() for i in tp.split(',') for t in i.split('-')]:
                     start = datetime.datetime.strptime(st, '%H:%M')
                     end =  start + datetime.timedelta(minutes=1)
                     p1 = self.df["structTime"] >= start
@@ -79,7 +79,7 @@ class CleanData(object):
                     dfTemp = dfTemp.sort_values(by = ["structTime"], ascending=False)
                     for i in dfTemp.index.values[1:]:
                         self.removeList.append(i)
-                        gLogger.debug('remove index = %d' % i)
+                        gLogger.info('remove index = %d' % i)
             del self.df["structTime"]
         except Exception as e:
             gLogger.exception("Exception : %s" %e)
@@ -93,7 +93,7 @@ class CleanData(object):
             idList = dfTemp[dfTemp["datetime"].duplicated()].index
             for i in idList.values:
                 self.removeList.append(i)
-                gLogger.debug('remove index = %d' % i)
+                gLogger.info('remove index = %d' % i)
         except Exception as e:
             gLogger.exception("Exception : %s" %e)
 
@@ -126,7 +126,7 @@ class CleanData(object):
                 if i not in self.removeList:
                     self.df.loc[i, "lastTurnover"] = row["lastTurnover"]
                     self.updateList.append(i)
-                    gLogger.debug('lastTurn = 0, update index = %d' % (i))
+                    gLogger.info('lastTurn = 0, update index = %d' % (i))
 
         # lastVolume为0,lastTurnover和lastPrice不为0
         dfTemp = self.df.loc[lastTurn & ~lastVol & lastP]
@@ -137,7 +137,7 @@ class CleanData(object):
                 if i not in self.removeList:
                     self.df.loc[i, "lastVolume"] = row["lastVolume"]
                     self.updateList.append(i)
-                    gLogger.debug('lastVol = 0, update index = %d' % (i))
+                    gLogger.info('lastVol = 0, update index = %d' % (i))
 
         # lastPrice为0,lastVolume和lastTurnover不为0
         dfTemp = self.df.loc[lastTurn & lastVol & ~lastP]
@@ -147,7 +147,7 @@ class CleanData(object):
                 if i not in self.removeList:
                     self.df.loc[i, "lastPrice"] = row["lastPrice"]
                     self.updateList.append(i)
-                    gLogger.debug('lastPrice = 0, update index = %d' % (i))
+                    gLogger.info('lastPrice = 0, update index = %d' % (i))
 
         # lastVolume和lastTurnover均不为0
         dfTemp = self.df.loc[lastVol & lastTurn & (Vol | Turn | openIn)]
@@ -158,7 +158,7 @@ class CleanData(object):
                     if i not in self.removeList:
                         self.removeList.append(i)
                         self.logList.append(i)
-                        gLogger.debug('Vol & openInterest & turn = 0, remove index = %d' % i)
+                        gLogger.info('Vol & openInterest & turn = 0, remove index = %d' % i)
 
             # turnover为0,lastVol不为0
             for i, row in self.df[Turn & lastVol].iterrows():
@@ -167,7 +167,7 @@ class CleanData(object):
                     row["turnover"] = self.df.loc[preIndex, "turnover"] + row["lastTurnover"]
                     self.df.loc[i, "turnover"] = row["turnover"]
                     self.updateList.append(i)
-                    gLogger.debug('Turn = 0 & lastTurn != 0, update index = %d' % (i))
+                    gLogger.info('Turn = 0 & lastTurn != 0, update index = %d' % (i))
 
             # volume为0,lastVol不为0
             for i, row in self.df[Vol & lastVol].iterrows():
@@ -176,7 +176,7 @@ class CleanData(object):
                     row["volume"] = self.df.loc[preIndex, "volume"] + row["lastVolume"]
                     self.df.loc[i, "volume"] = row["volume"]
                     self.updateList.append(i)
-                    gLogger.debug('Vol = 0 & lastVol != 0, update index = %d' % (i))
+                    gLogger.info('Vol = 0 & lastVol != 0, update index = %d' % (i))
 
     def cleanNullOpenInter(self):
         """持仓量为0,用上一个填充"""
@@ -196,7 +196,7 @@ class CleanData(object):
             for i in self.df.loc[lastP & high & low & bidP & askP].index.values:
                 if i not in self.removeList:
                     self.removeList.append(i)
-                    gLogger.debug('All Price is Null, remove index = %d' % i)
+                    gLogger.info('All Price is Null, remove index = %d' % i)
 
         # 某些为0，填充
         self.paddingWithPrevious("lastPrice")
@@ -232,7 +232,7 @@ class CleanData(object):
             for i, row in dfTemp.loc[dfTemp["IsExcept"]].iterrows():
                 if i not in self.removeList:
                     self.logList.append(i)
-                    gLogger.debug('Field = %s, log index = %d' % (field, i))
+                    gLogger.info('Field = %s, log index = %d' % (field, i))
         except Exception as e:
             gLogger.exception("Exception : %s" %e)
 
@@ -247,7 +247,7 @@ class CleanData(object):
                         row[field] = self.df.loc[preIndex,field]
                         self.df.loc[i,field] = row[field]
                         self.updateList.append(i)
-                        gLogger.debug('Field = %s, update index = %d' % (field, i))
+                        gLogger.info('Field = %s, update index = %d' % (field, i))
         except Exception as e:
             gLogger.exception("Exception : %s" %e)
 
@@ -255,7 +255,7 @@ class CleanData(object):
         tar = target
         try:
             tp = self.dfInfo.loc[self.Symbol]["CurrPeriod"]
-            time1 = [t for i in tp.split(',') for t in i.split('-')]
+            time1 = [t.strip() for i in tp.split(',') for t in i.split('-')]
             ms = tar[-3:]
             tar = tar[:-3]
 

@@ -42,6 +42,7 @@ class AggregateTickData(object):
             else:
                 Symbol = "".join([a for a in i if a.isalpha()]).lower()
             df = pd.DataFrame.from_records(list(self.db.get_specificDayItems(db, i, self.timePoint)))
+            df.sort(columns="datetime", ascending=True, inplace=True)
             if df.empty:
                 continue
             v = (Symbol, df, i)
@@ -101,7 +102,7 @@ class AggregateTickData(object):
                 tempDict[c] = []
                 self.splitDict[symbol][c] = []
                 tp = self.dfInfo.loc[symbol]["CurrPeriod"]
-                time1 = [t for i in tp.split(',') for t in i.split('-')]
+                time1 = [t.strip() for i in tp.split(',') for t in i.split('-')]
                 for i in zip(*([iter(time1)] * 2)):
                     start = str(i[0]).strip()
                     end = str(i[1]).strip()
@@ -149,7 +150,7 @@ class AggregateTickData(object):
             self.barDict[vtSymbol][c] = []
             df_data["structTime"] = df_data["time"].map(lambda x:datetime.datetime.strptime(x, "%H%M%S%f"))
             tp = self.dfInfo.loc[symbol]["CurrPeriod"]
-            tList = [t for i in tp.split(',') for t in i.split('-')]
+            tList = [t.strip() for i in tp.split(',') for t in i.split('-')]
             for i in zip(*[iter(self.splitDict[symbol][c][i:]) for i in range(2)]):
                 start = datetime.datetime.strptime(str(i[0]).strip(), '%H:%M:%S')
                 end = datetime.datetime.strptime(str(i[1]).strip(), '%H:%M:%S')
@@ -216,7 +217,7 @@ class AggregateTickData(object):
     def aggMethod(self, dfTemp, cflag, startTime):
         try:
             tempBar = {}
-            st = dfTemp.iloc[0]["date"] + ' ' + startTime
+            dfTemp.sort(["datetime"], ascending=True, inplace=True)
             if cflag == 1:
                 tempBar["vtSymbol"] = dfTemp.iloc[0]["vtSymbol"]
                 tempBar["symbol"] = dfTemp.iloc[0]["symbol"]
@@ -229,19 +230,9 @@ class AggregateTickData(object):
                 tempBar["low"] = float(min(dfTemp["lastPrice"]))
                 tempBar["open"] = float(dfTemp.iloc[0]["lastPrice"])
                 tempBar["close"] = float(dfTemp.iloc[-1]["lastPrice"])
-                tempBar["datetime"] = datetime.datetime.strptime(st, "%Y%m%d %H:%M:%S%f")
+                tempBar["datetime"] = dfTemp.iloc[0]["datetime"]
                 return tempBar
             elif cflag == '1Day':
-                s1 = datetime.datetime.strptime(st, "%Y%m%d %H:%M").replace(hour=20)
-                e1 = datetime.datetime.strptime(st, "%Y%m%d %H:%M").replace(hour=23)
-                s2 = datetime.datetime.strptime(st, "%Y%m%d %H:%M").replace(hour=14)
-                e2 = datetime.datetime.strptime(st, "%Y%m%d %H:%M").replace(hour=15)
-                gte1 = dfTemp["datetime"] >= s1
-                lte1 = dfTemp["datetime"] <= e1
-                gte2 = dfTemp["datetime"] >= s2
-                lte2 = dfTemp["datetime"] <= e2
-                tp1 = dfTemp.loc[gte1 & lte1]
-                tp2 = dfTemp.loc[gte2 & lte2]
                 tempBar["vtSymbol"] = dfTemp.iloc[0]["vtSymbol"]
                 tempBar["symbol"] = dfTemp.iloc[0]["symbol"]
                 tempBar["date"] = dfTemp.iloc[0]["date"]
@@ -250,12 +241,8 @@ class AggregateTickData(object):
                 tempBar["turnover"] = float(dfTemp["turnover"].sum())
                 tempBar["high"] = float(max(dfTemp["high"]))
                 tempBar["low"] = float(min(dfTemp["low"]))
-                if not tp1.empty:
-                    tempBar["open"] = float(tp1.iloc[0]["open"])
-                    tempBar["close"] = float(tp2.iloc[-1]["close"])
-                else:
-                    tempBar["open"] = float(dfTemp.iloc[0]["open"])
-                    tempBar["close"] = float(dfTemp.iloc[-1]["close"])
+                tempBar["open"] = float(dfTemp.iloc[0]["open"])
+                tempBar["close"] = float(dfTemp.iloc[-1]["close"])
                 tempBar["datetime"] = datetime.datetime.strptime(tempBar["date"], "%Y%m%d")
                 return tempBar
             else:
@@ -270,7 +257,7 @@ class AggregateTickData(object):
                 tempBar["low"] = float(min(dfTemp["low"]))
                 tempBar["open"] = float(dfTemp.iloc[0]["open"])
                 tempBar["close"] = float(dfTemp.iloc[-1]["close"])
-                tempBar["datetime"] = datetime.datetime.strptime(st, "%Y%m%d %H:%M:%S%f")
+                tempBar["datetime"] = dfTemp.iloc[0]["datetime"]
                 return tempBar
         except Exception as e:
             gLogger.exception("Exception when exec aggMethod e:%s" %e)
