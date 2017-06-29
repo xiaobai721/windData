@@ -26,18 +26,21 @@ class Main(object):
         done_queue = manager.Queue()
         lock = manager.Lock()
         for i in self.fileList:
-            sym = i.split('\\')[-2]
-            j = "".join([a for a in sym if a.isalpha()]).lower()
-            self.date = datetime.datetime.strptime(i.split('\\')[-1].split('_')[-1][:-4], '%Y%m%d')
-            dfInfo = self.loadInformation()
-            if j not in dfInfo.index and j not in ["ifc","ihc","icc","tfc"]:
-                continue
-            self.dateList.append(self.date)
-            v = (i, sym, dfInfo)
-            work_queue.put(v)
-            if not work_queue.empty():
-                p.apply_async(self.oninit, args=(work_queue, done_queue, lock,))
-                work_queue.put('STOP')
+            try:
+                sym = i.split('\\')[-2]
+                j = "".join([a for a in sym if a.isalpha()]).lower()
+                self.date = datetime.datetime.strptime(i.split('\\')[-1].split('_')[-1][:-4], '%Y%m%d')
+                dfInfo = self.loadInformation()
+                if j not in dfInfo.index and j not in ["ifc","ihc","icc","tfc"]:
+                    continue
+                self.dateList.append(self.date)
+                v = (i, sym, dfInfo)
+                work_queue.put(v)
+                if not work_queue.empty():
+                    p.apply_async(self.oninit, args=(work_queue, done_queue, lock,))
+                    work_queue.put('STOP')
+            except Exception as e:
+                gLogger.exception(e)
 
         p.close()
         p.join()
@@ -51,7 +54,7 @@ class Main(object):
                 i = v[0]
                 vtSymbol = v[1]
                 dfInfo = v[2]
-                gLogger.info('Run task %s (%s)...' % (vtSymbol, os.getpid()))
+                gLogger.warning('Run task %s (%s)...' % (vtSymbol, os.getpid()))
                 dfData = LoadMatFile(i, lock).dfData
                 CleanData(dfData, dfInfo, self.AucTime, lock)
                 done_queue.put("%s process has done!" %vtSymbol)
@@ -62,6 +65,7 @@ class Main(object):
 
 
     def parse2CycleData(self):
+        self.dateList = [datetime.datetime.strptime("20170623", '%Y%m%d'), datetime.datetime.strptime("20170622", '%Y%m%d')]
         for i in list(set(self.dateList)):
             gLogger.info("start parse cycle data —— %s" % i)
             self.date = i
@@ -107,5 +111,5 @@ class Main(object):
 if __name__ == '__main__':
     multiprocessing.freeze_support()
     ee = Main()
-    ee.processTickData()
+    # ee.processTickData()
     ee.parse2CycleData()
