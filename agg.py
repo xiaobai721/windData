@@ -43,13 +43,14 @@ class AggregateTickData(object):
                 else:
                     Symbol = "".join([a for a in i if a.isalpha()]).lower()
                 df = pd.DataFrame.from_records(list(self.db.get_specificDayItems(db, i, self.timePoint)))
-                df.sort(columns="datetime", ascending=True, inplace=True)
                 if df.empty:
                     continue
+                if "datetime" in df.columns:
+                    df.sort(columns="datetime", ascending=True, inplace=True)
                 v = (Symbol, df, i)
                 work_queue.put(v)
                 while(work_queue.full()):
-                    self.gLogger.critical("work queue is fill, waiting......")
+                    gLogger.critical("work queue is fill, waiting......")
                     time.sleep(1)
                 if not work_queue.empty():
                     p.apply_async(self.onto, args=(work_queue, done_queue, lock,))

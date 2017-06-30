@@ -39,10 +39,11 @@ class CleanData(object):
                 self.cleanIllegalTradingTime()
                 self.cleanSameTimestamp()
                 self.reserveLastTickInAuc()
-                self.cleanNullVolTurn()
+                self.cleanNullStartPrice()
+                # self.cleanNullVolTurn()
                 self.cleanNullPriceIndicator()
                 self.cleanNullOpenInter()
-                self.recordExceptionalPrice()
+                # self.recordExceptionalPrice()
 
                 self.delItemsFromRemove()
                 self.db.insert2db(dbNew,j, self.df)
@@ -71,15 +72,15 @@ class CleanData(object):
             gLogger.info("start reserveLastTickInAuc")
             self.df["structTime"] = self.df["time"].map(lambda x: datetime.datetime.strptime(x, "%H%M%S%f"))
             orilen = len(self.removeList)
+            tp = self.dfInfo.loc[self.Symbol]["CurrPeriod"]
             for st in self.AucTime:
-                tp = self.dfInfo.loc[self.Symbol]["CurrPeriod"]
                 if st in [t.strip() for i in tp.split(',') for t in i.split('-')]:
                     start = datetime.datetime.strptime(st, '%H:%M')
                     end =  start + datetime.timedelta(minutes=1)
                     p1 = self.df["structTime"] >= start
                     p2 = self.df["structTime"] < end
                     dfTemp = self.df.loc[p1 & p2]
-                    dfTemp = dfTemp.sort_values(by = ["structTime"], ascending=False)
+                    dfTemp.sort(columns = "structTime", ascending=False, inplace = True)
                     for i in dfTemp.index.values[1:]:
                         self.removeList.append(i)
                         # gLogger.debug('remove index = %d' % i)
@@ -94,7 +95,7 @@ class CleanData(object):
         """清除重复时间戳，记录"""
         try:
             gLogger.info("start cleanSameTimestamp")
-            dfTemp = self.df.sort_values(by=['datetime'], ascending=False)
+            dfTemp = self.df.sort(columns = 'datetime', ascending=False)
             idList = dfTemp[dfTemp["datetime"].duplicated()].index
             orilen = len(self.removeList)
             for i in idList.values:
@@ -103,6 +104,22 @@ class CleanData(object):
                 gLogger.warning('cleanSameTimestamp remove len = %d' %(len(self.removeList)-orilen))
         except Exception as e:
             gLogger.exception("Exception : %s" %e)
+
+    def cleanNullStartPrice(self):
+        """起始价格连续为0，删除"""
+        try:
+            gLogger.info("start cleanNullStartPrice")
+            orilen = len(self.removeList)
+            self.df.sort(column="datetime", ascending=True, inplace=True)
+            for i, row in self.df.iterrows():
+                if row["lastPrice"] == 0:
+                    self.removeList.append(i)
+                else:
+                    break
+            if len(self.removeList) > orilen:
+                gLogger.warning('cleanNullStartPrice remove len = %d' % (len(self.removeList) - orilen))
+        except Exception as e:
+            gLogger.exception("Exception : %s" % e)
 
     def cleanNullVolTurn(self):
         """Tick有成交，但volume和turnover为0"""
@@ -122,39 +139,39 @@ class CleanData(object):
         openIn = self.df["openInterest"] == 0.0
         lastP = self.df["lastPrice"] != 0.0
 
-        tu = self.dfInfo.loc[self.Symbol]["TradingUnits"]
+        # tu = self.dfInfo.loc[self.Symbol]["TradingUnits"]
 
         # lastTurn为0,lastVolume和lastPrice不为0
-        dfTemp = self.df.loc[~lastTurn & lastVol & lastP]
-        if not dfTemp.empty:
-            gLogger.debug("process data that lastTurn is null but lastVol and lastP are not")
-            dfTemp["lastTurnover"] = dfTemp["lastVolume"] * dfTemp["lastPrice"] * float(tu)
-            for i, row in dfTemp.iterrows():
-                if i not in self.removeList:
-                    self.df.loc[i, "lastTurnover"] = row["lastTurnover"]
-                    self.updateList.append(i)
-                    gLogger.debug('lastTurn = 0, update index = %d' % (i))
-
-        # lastVolume为0,lastTurnover和lastPrice不为0
-        dfTemp = self.df.loc[lastTurn & ~lastVol & lastP]
-        if not dfTemp.empty:
-            dfTemp["lastVolume"] = dfTemp["lastTurnover"] / (dfTemp["lastPrice"] * float(tu))
-            dfTemp["lastVolume"].map(lambda x: int(round(x)))
-            for i, row in dfTemp.iterrows():
-                if i not in self.removeList:
-                    self.df.loc[i, "lastVolume"] = row["lastVolume"]
-                    self.updateList.append(i)
-                    gLogger.debug('lastVol = 0, update index = %d' % (i))
-
-        # lastPrice为0,lastVolume和lastTurnover不为0
-        dfTemp = self.df.loc[lastTurn & lastVol & ~lastP]
-        if not dfTemp.empty:
-            dfTemp["lastPrice"] = dfTemp["lastTurnover"] / (dfTemp["lastVolume"] * float(tu))
-            for i, row in dfTemp.iterrows():
-                if i not in self.removeList:
-                    self.df.loc[i, "lastPrice"] = row["lastPrice"]
-                    self.updateList.append(i)
-                    gLogger.debug('lastPrice = 0, update index = %d' % (i))
+        # dfTemp = self.df.loc[~lastTurn & lastVol & lastP]
+        # if not dfTemp.empty:
+        #     gLogger.debug("process data that lastTurn is null but lastVol and lastP are not")
+        #     dfTemp["lastTurnover"] = dfTemp["lastVolume"] * dfTemp["lastPrice"] * float(tu)
+        #     for i, row in dfTemp.iterrows():
+        #         if i not in self.removeList:
+        #             self.df.loc[i, "lastTurnover"] = row["lastTurnover"]
+        #             self.updateList.append(i)
+        #             gLogger.debug('lastTurn = 0, update index = %d' % (i))
+        #
+        # # lastVolume为0,lastTurnover和lastPrice不为0
+        # dfTemp = self.df.loc[lastTurn & ~lastVol & lastP]
+        # if not dfTemp.empty:
+        #     dfTemp["lastVolume"] = dfTemp["lastTurnover"] / (dfTemp["lastPrice"] * float(tu))
+        #     dfTemp["lastVolume"].map(lambda x: int(round(x)))
+        #     for i, row in dfTemp.iterrows():
+        #         if i not in self.removeList:
+        #             self.df.loc[i, "lastVolume"] = row["lastVolume"]
+        #             self.updateList.append(i)
+        #             gLogger.debug('lastVol = 0, update index = %d' % (i))
+        #
+        # # lastPrice为0,lastVolume和lastTurnover不为0
+        # dfTemp = self.df.loc[lastTurn & lastVol & ~lastP]
+        # if not dfTemp.empty:
+        #     dfTemp["lastPrice"] = dfTemp["lastTurnover"] / (dfTemp["lastVolume"] * float(tu))
+        #     for i, row in dfTemp.iterrows():
+        #         if i not in self.removeList:
+        #             self.df.loc[i, "lastPrice"] = row["lastPrice"]
+        #             self.updateList.append(i)
+        #             gLogger.debug('lastPrice = 0, update index = %d' % (i))
 
         # lastVolume和lastTurnover均不为0
         dfTemp = self.df.loc[lastVol & lastTurn & (Vol | Turn | openIn)]
@@ -197,10 +214,11 @@ class CleanData(object):
         low = self.df["lowPrice"] == 0.0
         bidP = self.df["bidPrice1"] == 0.0
         askP = self.df["askPrice1"] == 0.0
+
         # 如果均为0，删除
         oriLen = len(self.removeList)
         if self.df.loc[lastP & high & low & bidP & askP]._values.any():
-            gLogger.debug("process data that all price indicators are null")
+            # gLogger.debug("process data that all price indicators are null")
             for i in self.df.loc[lastP & high & low & bidP & askP].index.values:
                 if i not in self.removeList:
                     self.removeList.append(i)
