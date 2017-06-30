@@ -34,11 +34,11 @@ class Main(object):
                 if j not in dfInfo.index and j not in ["ifc","ihc","icc","tfc"]:
                     continue
                 self.dateList.append(self.date)
-                # v = (i, sym, dfInfo)
-                # work_queue.put(v)
-                # if not work_queue.empty():
-                #     p.apply_async(self.oninit, args=(work_queue, done_queue, lock,))
-                #     work_queue.put('STOP')
+                v = (i, sym, dfInfo)
+                work_queue.put(v)
+                if not work_queue.empty():
+                    p.apply_async(self.oninit, args=(work_queue, done_queue, lock,))
+                    work_queue.put('STOP')
             except Exception as e:
                 gLogger.exception(e)
 
@@ -65,7 +65,7 @@ class Main(object):
 
 
     def parse2CycleData(self):
-        self.dateList = [datetime.datetime.strptime("20170622", '%Y%m%d')]
+        # self.dateList = [datetime.datetime.strptime("20170622", '%Y%m%d')]
         for i in list(set(self.dateList)):
             gLogger.info("start parse cycle data —— %s" % i)
             self.date = i
@@ -111,5 +111,5 @@ class Main(object):
 if __name__ == '__main__':
     multiprocessing.freeze_support()
     ee = Main()
-    # ee.processTickData()
+    ee.processTickData()
     ee.parse2CycleData()

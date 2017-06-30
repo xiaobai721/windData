@@ -35,7 +35,6 @@ class AggregateTickData(object):
         self.db = dbHandle(lock)
         db = self.db.get_db(getConfig("database", "dbhost"), int(getConfig("database", "dbport")), getConfig("database", "db_tick"))
         names = self.db.get_all_colls(db)
-        names = ["SM801"]
         for i in names:
             try:
                 gLogger.warn("start aggregate data with %s" %i)
