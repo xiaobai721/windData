@@ -35,8 +35,10 @@ class AggregateTickData(object):
         self.db = dbHandle(lock)
         db = self.db.get_db(getConfig("database", "dbhost"), int(getConfig("database", "dbport")), getConfig("database", "db_tick"))
         names = self.db.get_all_colls(db)
+        names = ["SM801"]
         for i in names:
             try:
+                gLogger.warn("start aggregate data with %s" %i)
                 if "IFC" in i or "IHC" in i or "ICC" in i or "TFC" in i:
                     i = i[:2]
                     Symbol = "".join([a for a in i if a.isalpha()]).lower()
@@ -154,11 +156,11 @@ class AggregateTickData(object):
             self.barDict[vtSymbol][c] = []
             df_data["structTime"] = df_data["time"].map(lambda x:datetime.datetime.strptime(x, "%H%M%S%f"))
             tp = self.dfInfo.loc[symbol]["CurrPeriod"]
-            tList = [t.strip() for i in tp.split(',') for t in i.split('-')]
+            tList = [datetime.datetime.strptime(t.strip(), "%H:%M") for i in tp.split(',') for t in i.split('-')]
             for i in zip(*[iter(self.splitDict[symbol][c][i:]) for i in range(2)]):
                 start = datetime.datetime.strptime(str(i[0]).strip(), '%H:%M:%S')
                 end = datetime.datetime.strptime(str(i[1]).strip(), '%H:%M:%S')
-                if (start - datetime.timedelta(minutes=1)).strftime('%H:%M') in self.AucTime and (start - datetime.timedelta(minutes=1)).strftime('%H:%M') in tList:
+                if (start - datetime.timedelta(minutes=1)).strftime('%H:%M') in self.AucTime and start - datetime.timedelta(minutes=1) in tList:
                     start = start - datetime.timedelta(minutes=1)
                 p1 = df_data["structTime"] >= start
                 p2 = df_data["structTime"] < end
@@ -212,7 +214,7 @@ class AggregateTickData(object):
     def func1(self, s1):
         def func2(e1):
             def func3(x):
-                ti = time.strptime(x["time"].strip(), '%H%M%S%f')
+                ti = time.strptime(x["time"].strip(), '%H:%M:%S')
                 if ti >= s1 and ti < e1:
                     return x
             return func3
@@ -226,7 +228,7 @@ class AggregateTickData(object):
                 tempBar["vtSymbol"] = dfTemp.iloc[0]["vtSymbol"]
                 tempBar["symbol"] = dfTemp.iloc[0]["symbol"]
                 tempBar["date"] = dfTemp.iloc[0]["date"]
-                tempBar["time"] = dfTemp.iloc[0]["time"]
+                tempBar["time"] = startTime
                 tempBar["openInterest"] = float(dfTemp.iloc[-1]["openInterest"])
                 tempBar["volume"] = float(dfTemp["lastVolume"].sum())
                 tempBar["turnover"] = float(dfTemp["lastTurnover"].sum())
@@ -234,13 +236,15 @@ class AggregateTickData(object):
                 tempBar["low"] = float(min(dfTemp["lastPrice"]))
                 tempBar["open"] = float(dfTemp.iloc[0]["lastPrice"])
                 tempBar["close"] = float(dfTemp.iloc[-1]["lastPrice"])
-                tempBar["datetime"] = dfTemp.iloc[0]["datetime"]
+                tempBar["datetime"] = datetime.datetime.strptime(tempBar["date"] + startTime, "%Y%m%d%H:%M:%S")
+                # tempBar["datetime"] = dfTemp.iloc[0]["datetime"]
                 return tempBar
             elif cflag == '1Day':
                 tempBar["vtSymbol"] = dfTemp.iloc[0]["vtSymbol"]
                 tempBar["symbol"] = dfTemp.iloc[0]["symbol"]
                 tempBar["date"] = dfTemp.iloc[0]["date"]
                 tempBar["time"] = dfTemp.iloc[0]["time"]
+                tempBar["openInterest"] = float(dfTemp.iloc[-1]["openInterest"])
                 tempBar["volume"] = float(dfTemp["volume"].sum())
                 tempBar["turnover"] = float(dfTemp["turnover"].sum())
                 tempBar["high"] = float(max(dfTemp["high"]))

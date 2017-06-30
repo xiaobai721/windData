@@ -42,7 +42,7 @@ class dbHandle(object):
         self.lock.acquire()
         if isinstance(df, pd.DataFrame):
             if df.empty:
-                gLogger.error("data trying to insert is empty!")
+                # gLogger.error("data trying to insert is empty!")
                 self.lock.release()
                 return
             data = json.loads(df.T.to_json(date_format = 'iso')).values()

@@ -83,7 +83,6 @@ class CleanData(object):
                     dfTemp.sort(columns = "structTime", ascending=False, inplace = True)
                     for i in dfTemp.index.values[1:]:
                         self.removeList.append(i)
-                        # gLogger.debug('remove index = %d' % i)
             if len(self.removeList) > orilen:
                 gLogger.warning("reserveLastTickInAuc remove len = %d" %(len(self.removeList)-orilen))
             del self.df["structTime"]
@@ -110,7 +109,7 @@ class CleanData(object):
         try:
             gLogger.info("start cleanNullStartPrice")
             orilen = len(self.removeList)
-            self.df.sort(column="datetime", ascending=True, inplace=True)
+            self.df.sort(columns="datetime", ascending=True, inplace=True)
             for i, row in self.df.iterrows():
                 if row["lastPrice"] == 0:
                     self.removeList.append(i)
