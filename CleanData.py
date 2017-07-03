@@ -5,6 +5,7 @@
 
 import pandas as pd
 import time, datetime
+import copy
 from dbHandle import dbHandle
 from module_mylog import gLogger
 from parseConfig import getConfig
@@ -94,7 +95,7 @@ class CleanData(object):
         """清除重复时间戳，记录"""
         try:
             gLogger.info("start cleanSameTimestamp")
-            dfTemp = self.df
+            dfTemp = copy.copy(self.df)
             dfTemp["num"] = dfTemp.index
             dfTemp = dfTemp.sort(columns = "num", ascending=False)
             idList = dfTemp[dfTemp["datetime"].duplicated()].index
@@ -102,6 +103,7 @@ class CleanData(object):
             for i in idList.values:
                 if i not in self.removeList:
                     self.removeList.append(i)
+            del dfTemp["num"]
             if len(self.removeList) > orilen:
                 gLogger.warning('cleanSameTimestamp remove len = %d' %(len(self.removeList)-orilen))
         except Exception as e:

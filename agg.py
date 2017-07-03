@@ -23,6 +23,7 @@ class AggregateTickData(object):
         self.timePoint = date
         self.cycle = [1, 5, 15, 30, 60]
         self.AucTime = aucTime
+        self.CloseTime = ["15:00"]
         self.initStart()
 
     def initStart(self):
@@ -35,6 +36,7 @@ class AggregateTickData(object):
         self.db = dbHandle(lock)
         db = self.db.get_db(getConfig("database", "dbhost"), int(getConfig("database", "dbport")), getConfig("database", "db_tick"))
         names = self.db.get_all_colls(db)
+        names = ["SM709"]
         for i in names:
             try:
                 gLogger.warn("start aggregate data with %s" %i)
@@ -157,11 +159,14 @@ class AggregateTickData(object):
             tp = self.dfInfo.loc[symbol]["CurrPeriod"]
             tList = [datetime.datetime.strptime(t.strip(), "%H:%M") for i in tp.split(',') for t in i.split('-')]
             aucTime = [datetime.datetime.strptime(t.strip(), "%H:%M") for t in self.AucTime]
+            closeTime = [datetime.datetime.strptime(t.strip(), "%H:%M") for t in self.CloseTime]
             for i in zip(*[iter(self.splitDict[symbol][c][i:]) for i in range(2)]):
                 start = datetime.datetime.strptime(str(i[0]).strip(), '%H:%M:%S')
                 end = datetime.datetime.strptime(str(i[1]).strip(), '%H:%M:%S')
                 if start - datetime.timedelta(minutes=1) in aucTime and start - datetime.timedelta(minutes=1) in tList:
                     start = start - datetime.timedelta(minutes=1)
+                if end in closeTime:
+                    end = end + datetime.timedelta(seconds=1)
                 p1 = df_data["structTime"] >= start
                 p2 = df_data["structTime"] < end
                 dfTemp = df_data.loc[p1 & p2]
@@ -230,10 +235,10 @@ class AggregateTickData(object):
                 tempBar["date"] = dfTemp.iloc[0]["date"]
                 tempBar["time"] = startTime
                 tempBar["openInterest"] = float(dfTemp.iloc[-1]["openInterest"])
-                tempBar["volume"] = float(dfTemp["lastVolume"].sum())
-                tempBar["turnover"] = float(dfTemp["lastTurnover"].sum())
-                tempBar["high"] = float(max(dfTemp["lastPrice"]))
-                tempBar["low"] = float(min(dfTemp["lastPrice"]))
+                tempBar["volume"] = float(dfTemp["lastVolume"].values.sum())
+                tempBar["turnover"] = float(dfTemp["lastTurnover"].values.sum())
+                tempBar["high"] = float(max(dfTemp["lastPrice"].values))
+                tempBar["low"] = float(min(dfTemp["lastPrice"].values))
                 tempBar["open"] = float(dfTemp.iloc[0]["lastPrice"])
                 tempBar["close"] = float(dfTemp.iloc[-1]["lastPrice"])
                 realDate = dfTemp.iloc[0]["datetime"].strftime("%Y%m%d")
@@ -246,10 +251,10 @@ class AggregateTickData(object):
                 tempBar["date"] = dfTemp.iloc[0]["date"]
                 tempBar["time"] = dfTemp.iloc[0]["time"]
                 tempBar["openInterest"] = float(dfTemp.iloc[-1]["openInterest"])
-                tempBar["volume"] = float(dfTemp["volume"].sum())
-                tempBar["turnover"] = float(dfTemp["turnover"].sum())
-                tempBar["high"] = float(max(dfTemp["high"]))
-                tempBar["low"] = float(min(dfTemp["low"]))
+                tempBar["volume"] = float(dfTemp["volume"].values.sum())
+                tempBar["turnover"] = float(dfTemp["turnover"].values.sum())
+                tempBar["high"] = float(max(dfTemp["high"].values))
+                tempBar["low"] = float(min(dfTemp["low"].values))
                 tempBar["open"] = float(dfTemp.iloc[0]["open"])
                 tempBar["close"] = float(dfTemp.iloc[-1]["close"])
                 tempBar["datetime"] = datetime.datetime.strptime(tempBar["date"], "%Y%m%d")
@@ -260,10 +265,10 @@ class AggregateTickData(object):
                 tempBar["date"] = dfTemp.iloc[0]["date"]
                 tempBar["time"] = dfTemp.iloc[0]["time"]
                 tempBar["openInterest"] = float(dfTemp.iloc[-1]["openInterest"])
-                tempBar["volume"] = float(dfTemp["volume"].sum())
-                tempBar["turnover"] = float(dfTemp["turnover"].sum())
-                tempBar["high"] = float(max(dfTemp["high"]))
-                tempBar["low"] = float(min(dfTemp["low"]))
+                tempBar["volume"] = float(dfTemp["volume"].values.sum())
+                tempBar["turnover"] = float(dfTemp["turnover"].values.sum())
+                tempBar["high"] = float(max(dfTemp["high"].values))
+                tempBar["low"] = float(min(dfTemp["low"].values))
                 tempBar["open"] = float(dfTemp.iloc[0]["open"])
                 tempBar["close"] = float(dfTemp.iloc[-1]["close"])
                 tempBar["datetime"] = dfTemp.iloc[0]["datetime"]
