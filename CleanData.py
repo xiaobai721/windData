@@ -114,8 +114,9 @@ class CleanData(object):
             orilen = len(self.removeList)
             self.df.sort(columns="datetime", ascending=True, inplace=True)
             for i, row in self.df.iterrows():
-                if row["lastPrice"] == 0 and i not in self.removeList:
-                    self.removeList.append(i)
+                if row["lastPrice"] == 0:
+                    if i not in self.removeList:
+                        self.removeList.append(i)
                 else:
                     break
             if len(self.removeList) > orilen:
