@@ -65,7 +65,7 @@ class Main(object):
 
 
     def parse2CycleData(self):
-        # self.dateList = [datetime.datetime.strptime("20170622", '%Y%m%d')]
+        # self.dateList = [datetime.datetime.strptime("20170621", '%Y%m%d')]
         for i in list(set(self.dateList)):
             gLogger.info("start parse cycle data —— %s" % i)
             self.date = i

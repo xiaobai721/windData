@@ -156,15 +156,16 @@ class AggregateTickData(object):
             df_data["structTime"] = df_data["time"].map(lambda x:datetime.datetime.strptime(x, "%H%M%S%f"))
             tp = self.dfInfo.loc[symbol]["CurrPeriod"]
             tList = [datetime.datetime.strptime(t.strip(), "%H:%M") for i in tp.split(',') for t in i.split('-')]
+            aucTime = [datetime.datetime.strptime(t.strip(), "%H:%M") for t in self.AucTime]
             for i in zip(*[iter(self.splitDict[symbol][c][i:]) for i in range(2)]):
                 start = datetime.datetime.strptime(str(i[0]).strip(), '%H:%M:%S')
                 end = datetime.datetime.strptime(str(i[1]).strip(), '%H:%M:%S')
-                if (start - datetime.timedelta(minutes=1)).strftime('%H:%M') in self.AucTime and start - datetime.timedelta(minutes=1) in tList:
+                if start - datetime.timedelta(minutes=1) in aucTime and start - datetime.timedelta(minutes=1) in tList:
                     start = start - datetime.timedelta(minutes=1)
                 p1 = df_data["structTime"] >= start
                 p2 = df_data["structTime"] < end
                 dfTemp = df_data.loc[p1 & p2]
-                if len(dfTemp) > 1:
+                if not dfTemp.empty:
                     self.barDict[vtSymbol][c].append(self.aggMethod(dfTemp, c, str(i[0]).strip()))
             dbNew = self.db.get_db(getConfig("database", "dbhost"), int(getConfig("database", "dbport")), getConfig("database", "db_1min"))
             self.db.insert2db(dbNew, vtSymbol, self.barDict[vtSymbol][c])
@@ -186,7 +187,7 @@ class AggregateTickData(object):
                     items = list(map(selectItems, self.barDict[vtSymbol][1]))
                     items = list(filter(lambda x:x is not None, items))
                     dfTemp = pd.DataFrame(items)
-                    if len(dfTemp) > 1:
+                    if not dfTemp.empty:
                         self.barDict[vtSymbol][c].append(self.aggMethod(dfTemp, c, str(i[0]).strip()))
                 collName = "db_" + str(c) + "min"
                 dbNew = self.db.get_db(getConfig("database", "dbhost"), int(getConfig("database", "dbport")), getConfig("database", collName))
@@ -235,7 +236,8 @@ class AggregateTickData(object):
                 tempBar["low"] = float(min(dfTemp["lastPrice"]))
                 tempBar["open"] = float(dfTemp.iloc[0]["lastPrice"])
                 tempBar["close"] = float(dfTemp.iloc[-1]["lastPrice"])
-                tempBar["datetime"] = datetime.datetime.strptime(tempBar["date"] + startTime, "%Y%m%d%H:%M:%S")
+                realDate = dfTemp.iloc[0]["datetime"].strftime("%Y%m%d")
+                tempBar["datetime"] = datetime.datetime.strptime(realDate + startTime, "%Y%m%d%H:%M:%S")
                 # tempBar["datetime"] = dfTemp.iloc[0]["datetime"]
                 return tempBar
             elif cflag == '1Day':

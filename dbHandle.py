@@ -53,7 +53,7 @@ class dbHandle(object):
             self.lock.release()
         elif isinstance(df, list):
             if len(df) == 0:
-                gLogger.error("data trying to insert is empty!")
+                # gLogger.error("data trying to insert is empty!")
                 self.lock.release()
                 return
             dbNew[coll_name].insert_many(df)
