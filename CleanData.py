@@ -94,11 +94,14 @@ class CleanData(object):
         """清除重复时间戳，记录"""
         try:
             gLogger.info("start cleanSameTimestamp")
-            dfTemp = self.df.sort(columns = 'datetime', ascending=False)
+            dfTemp = self.df
+            dfTemp["num"] = dfTemp.index
+            dfTemp = dfTemp.sort(columns = "num", ascending=False)
             idList = dfTemp[dfTemp["datetime"].duplicated()].index
             orilen = len(self.removeList)
             for i in idList.values:
-                self.removeList.append(i)
+                if i not in self.removeList:
+                    self.removeList.append(i)
             if len(self.removeList) > orilen:
                 gLogger.warning('cleanSameTimestamp remove len = %d' %(len(self.removeList)-orilen))
         except Exception as e:
