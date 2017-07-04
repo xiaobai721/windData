@@ -25,6 +25,7 @@ class Main(object):
         work_queue = manager.Queue()
         done_queue = manager.Queue()
         lock = manager.Lock()
+        self.fileList = ["F:\\tempData\\20170623\\MA710\\MA710_20170623.mat"]
         for i in self.fileList:
             try:
                 sym = i.split('\\')[-2]
@@ -111,5 +112,5 @@ class Main(object):
 if __name__ == '__main__':
     multiprocessing.freeze_support()
     ee = Main()
-    # ee.processTickData()
+    ee.processTickData()
     ee.parse2CycleData()

@@ -96,10 +96,10 @@ class CleanData(object):
         try:
             gLogger.info("start cleanSameTimestamp")
             dfTemp = copy.copy(self.df)
-            count = {}
             orilen = len(self.removeList)
             for k,v in dfTemp.groupby(["datetime"]):
                 if v.shape[0] > 1:
+                    count = {}
                     for i, row in v.iterrows():
                         count[i] = 0
                         if row["lastPrice"] != 0:
@@ -118,8 +118,8 @@ class CleanData(object):
                         # 郑商所时间戳重复，依次加1tick
                         if "zc" in self.dfInfo.loc[self.Symbol]["Market"]:
                             for i, row in v[1:].iterrows():
-                                self.df.loc[i]["datetime"] = row["datetime"] + datetime.timedelta(microseconds=500)
-                                self.df.loc[i]["time"] = self.df.loc[i]["datetime"].strftime("%H%M%S%f")
+                                self.df.loc[i, ["datetime"]] = copy.copy(row["datetime"] + datetime.timedelta(microseconds=500000))
+                                self.df.loc[i, ["time"]] = copy.copy(self.df.loc[i]["datetime"].strftime("%H%M%S%f"))
                         else:
                             self.removeList.extend(v.index.tolist().sort()[:-1])
 
