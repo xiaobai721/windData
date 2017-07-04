@@ -36,7 +36,7 @@ class AggregateTickData(object):
         self.db = dbHandle(lock)
         db = self.db.get_db(getConfig("database", "dbhost"), int(getConfig("database", "dbport")), getConfig("database", "db_tick"))
         names = self.db.get_all_colls(db)
-        names = ["SM709"]
+        names = ["cu1712"]
         for i in names:
             try:
                 gLogger.warn("start aggregate data with %s" %i)
@@ -163,6 +163,8 @@ class AggregateTickData(object):
             for i in zip(*[iter(self.splitDict[symbol][c][i:]) for i in range(2)]):
                 start = datetime.datetime.strptime(str(i[0]).strip(), '%H:%M:%S')
                 end = datetime.datetime.strptime(str(i[1]).strip(), '%H:%M:%S')
+                if start in closeTime:
+                    continue
                 if start - datetime.timedelta(minutes=1) in aucTime and start - datetime.timedelta(minutes=1) in tList:
                     start = start - datetime.timedelta(minutes=1)
                 if end in closeTime:

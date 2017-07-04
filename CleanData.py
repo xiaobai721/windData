@@ -96,14 +96,33 @@ class CleanData(object):
         try:
             gLogger.info("start cleanSameTimestamp")
             dfTemp = copy.copy(self.df)
-            dfTemp["num"] = dfTemp.index
-            dfTemp = dfTemp.sort(columns = "num", ascending=False)
-            idList = dfTemp[dfTemp["datetime"].duplicated()].index
+            count = {}
             orilen = len(self.removeList)
-            for i in idList.values:
-                if i not in self.removeList:
-                    self.removeList.append(i)
-            del dfTemp["num"]
+            for k,v in dfTemp.groupby(["datetime"]):
+                if v.shape[0] > 1:
+                    for i, row in v.iterrows():
+                        count[i] = 0
+                        if row["lastPrice"] != 0:
+                            count[i] += 1
+                        if row["lastVolume"] != 0:
+                            count[i] += 1
+                        if row["openInterest"] != 0:
+                            count[i] += 1
+
+                    if len(set(list(count.values())))  > 1: #信息量不一致的情况，保存信息量最多的
+                        maxIdList = [a1 for a1, a2 in count.items() if a2 == max(list(count.values()))]
+                        self.removeList.extend([a1 for a1 in list(count.keys()) if a1 not in maxIdList])
+                        if len(maxIdList) > 1:
+                            self.removeList.extend(maxIdList.sort()[:-1])
+                    elif len(set(list(count.values()))) == 1:
+                        # 郑商所时间戳重复，依次加1tick
+                        if "zc" in self.dfInfo.loc[self.Symbol]["Market"]:
+                            for i, row in v[1:].iterrows():
+                                self.df.loc[i]["datetime"] = row["datetime"] + datetime.timedelta(microseconds=500)
+                                self.df.loc[i]["time"] = self.df.loc[i]["datetime"].strftime("%H%M%S%f")
+                        else:
+                            self.removeList.extend(v.index.tolist().sort()[:-1])
+
             if len(self.removeList) > orilen:
                 gLogger.warning('cleanSameTimestamp remove len = %d' %(len(self.removeList)-orilen))
         except Exception as e:
