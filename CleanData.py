@@ -113,7 +113,8 @@ class CleanData(object):
                         maxIdList = [a1 for a1, a2 in count.items() if a2 == max(list(count.values()))]
                         self.removeList.extend([a1 for a1 in list(count.keys()) if a1 not in maxIdList])
                         if len(maxIdList) > 1:
-                            self.removeList.extend(maxIdList.sort()[:-1])
+                            maxIdList.sort()
+                            self.removeList.extend(maxIdList[:-1])
                     elif len(set(list(count.values()))) == 1:
                         # 郑商所时间戳重复，依次加1tick
                         if "zc" in self.dfInfo.loc[self.Symbol]["Market"]:
@@ -121,7 +122,8 @@ class CleanData(object):
                                 self.df.loc[i, ["datetime"]] = copy.copy(row["datetime"] + datetime.timedelta(microseconds=500000))
                                 self.df.loc[i, ["time"]] = copy.copy(self.df.loc[i]["datetime"].strftime("%H%M%S%f"))
                         else:
-                            self.removeList.extend(v.index.tolist().sort()[:-1])
+                            v.index.tolist().sort()
+                            self.removeList.extend(v.index.tolist()[:-1])
 
             if len(self.removeList) > orilen:
                 gLogger.warning('cleanSameTimestamp remove len = %d' %(len(self.removeList)-orilen))
